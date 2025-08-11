@@ -1,0 +1,33 @@
+# Doxyfile.in for CMake configuration
+
+
+PROJECT_NAME           = "TaskSchedX"
+OUTPUT_DIRECTORY       = docs
+INPUT                  = src include README.md
+RECURSIVE              = YES
+
+# Markdown integration
+USE_MDFILE_AS_MAINPAGE = README.md
+MARKDOWN_SUPPORT       = YES
+
+# Output format
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HTML_OUTPUT            = .
+FULL_PATH_NAMES        = NO
+STRIP_FROM_PATH        = src include
+QUIET                  = YES
+
+# Theme customization
+HTML_HEADER=@AWESOME_CSS_DIR@/doxygen-custom/header.html
+HTML_EXTRA_STYLESHEET=@AWESOME_CSS_DIR@/doxygen-awesome.css,@AWESOME_CSS_DIR@/doxygen-awesome-sidebar-only.css,@AWESOME_CSS_DIR@/doxygen-awesome-sidebar-only-darkmode-toggle.css,@AWESOME_CSS_DIR@/doxygen-custom/custom.css,@AWESOME_CSS_DIR@/doxygen-custom/custom-alternative.css
+HTML_EXTRA_FILES=@AWESOME_CSS_DIR@/doxygen-awesome-darkmode-toggle.js,@AWESOME_CSS_DIR@/doxygen-awesome-fragment-copy-button.js,@AWESOME_CSS_DIR@/doxygen-awesome-interactive-toc.js,@AWESOME_CSS_DIR@/doxygen-awesome-paragraph-link.js,@AWESOME_CSS_DIR@/doxygen-awesome-tabs.js,@AWESOME_CSS_DIR@/doxygen-custom/toggle-alternative-theme.js
+GENERATE_TREEVIEW      = YES
+HTML_COLORSTYLE        = LIGHT
+FULL_SIDEBAR           = NO
+DISABLE_INDEX          = NO
+
+# Optimization
+EXTRACT_ALL            = YES
+INLINE_SOURCES         = YES
+STRIP_CODE_COMMENTS    = NO
