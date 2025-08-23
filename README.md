@@ -99,7 +99,7 @@ auto status = scheduler.getTaskStatus("task_id");
 std::cout << "Task status: " << TaskSchedX::Task::status_to_string(status) << std::endl;
 
 bool cancelled = scheduler.cancelTask("task_id");
-std::cout << "cancellation task :" (cancelled ? "SUCCESS" : "FAILED") << std::endl;
+std::cout << "Task cancellation: " << (cancelled ? "SUCCESS" : "FAILED") << std::endl;
 
 auto stats = scheduler.getStatistics();
 std::cout << "Total tasks scheduled: " << stats.totalTasksScheduled << std::endl;
