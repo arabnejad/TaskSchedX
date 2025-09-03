@@ -111,10 +111,10 @@ int main() {
   // These tasks should execute immediately and have the highest priority
   std::cout << "\n🗓️ Adding immediate high priority tasks:" << std::endl;
 
-  taskConfig.executeFn  = []() { std::cout << "Task (PRIORITY 0) — Expected: #1 - Immediate execution" << std::endl; };
-  taskConfig.startTime  = std::chrono::system_clock::now(); // Immediate execution
-  taskConfig.priority   = 0;                                // Priority 0, highest priority
-  taskConfig.repeatable = false;                            // non-Repeatable
+  taskConfig.executeFn = []() { std::cout << "Task (PRIORITY 0) — Expected: #1 - Immediate execution" << std::endl; };
+  taskConfig.startTime = std::chrono::system_clock::now(); // Immediate execution
+  taskConfig.priority  = 0;                                // Priority 0, highest priority
+  taskConfig.repeatable = false;                           // non-Repeatable
 
   std::string immediateId = scheduler.scheduleTask(taskConfig);
   taskIds.push_back(immediateId);
