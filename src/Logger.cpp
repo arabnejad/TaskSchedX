@@ -189,7 +189,6 @@ std::string Logger::getCurrentTimestamp() {
   auto ms =
       std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % std::chrono::milliseconds(1000);
 
-
   std::ostringstream oss;
   std::tm            tm{};
 

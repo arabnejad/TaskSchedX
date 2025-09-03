@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <thread>
 #include <string>
+#include <ostream>
 #if defined(__APPLE__) || defined(__linux__)
 #include <pthread.h>
 #elif defined(_WIN32)

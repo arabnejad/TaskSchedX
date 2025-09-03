@@ -117,7 +117,6 @@ private:
   static std::atomic<size_t> nextId;
 };
 
-std::ostream &operator<<(std::ostream &os, Task::Status status);
 } // namespace TaskSchedX
 
 #endif // TASKSCHEDX_TASK_H
