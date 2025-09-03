@@ -46,7 +46,6 @@ void Logger::setLevel(Level level) {
  * @brief Enables or disables console output for log messages
  *
  * Controls whether log messages are written to standard output.
- * Console output can be used independently of or in addition to file output.
  *
  * @param enable true to enable console output, false to disable
  *
