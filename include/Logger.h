@@ -13,7 +13,7 @@ namespace TaskSchedX {
 
 /**
  * @class Logger
- * @brief Thread-safe singleton logger with configurable output and log levels
+ * @brief Thread-safe singleton logger with configurable log levels
  *
  * The Logger class provides a centralized logging system with support for multiple
  * log levels, file output, console output, and thread-safe operation. It implements
@@ -22,7 +22,6 @@ namespace TaskSchedX {
  * Key features:
  * - Singleton pattern for global access
  * - Multiple log levels (DEBUG, INFO, WARN, ERROR, NONE)
- * - Configurable console and file output
  * - Thread-safe logging operations
  * - Formatted log messages with level indicators
  *
@@ -69,13 +68,13 @@ private:
    *
    * Initializes the logger with default settings (NONE level, console disabled).
    */
-  Logger() : currentLevel(Level::NONE), consoleOutput(false) {};
+  Logger() : currentLevel(Level::NONE), consoleOutput(false){};
 
   /**
    * @brief Destructor
    *
    */
-  ~Logger() {};
+  ~Logger(){};
 
   void log(Level level, const std::string &message);
 

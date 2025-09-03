@@ -15,7 +15,7 @@
 using namespace TaskSchedX;
 
 long getCpuTimeMs() {
-  struct rusage usage{};
+  struct rusage usage {};
   getrusage(RUSAGE_SELF, &usage);
   long user = usage.ru_utime.tv_sec * 1000 + usage.ru_utime.tv_usec / 1000;
   long sys  = usage.ru_stime.tv_sec * 1000 + usage.ru_stime.tv_usec / 1000;
@@ -72,8 +72,7 @@ public:
     std::cout << "Tasks timed out: " << finalStats.tasksTimedOut << std::endl;
 
     std::cout << "\nTotalnumTasks = " << numTasks << " | ✅ Completed: " << completed.load()
-              << " | 🕒 Wall Time: " << wallTime << " ms"
-              << " | 🧠 CPU Time: " << cpuUsed << " ms"
+              << " | 🕒 Wall Time: " << wallTime << " ms" << " | 🧠 CPU Time: " << cpuUsed << " ms"
               << " | ⚡ Throughput: " << std::fixed << std::setprecision(2) << throughput << " tasks/sec" << std::endl;
   }
 };

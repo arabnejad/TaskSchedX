@@ -79,10 +79,9 @@ int main() {
     auto status2 = scheduler.getTaskStatus(task2Id);
     auto status3 = scheduler.getTaskStatus(task3Id);
 
-    std::cout << "🧐 MONITOR " << i << "s: Task statuses - "
-              << "Task1: " << Task::status_to_string(status1) << ", "
-              << "Task2: " << Task::status_to_string(status2) << ", "
-              << "Task3: " << Task::status_to_string(status3) << std::endl;
+    std::cout << "🧐 MONITOR " << i << "s: Task statuses - " << "Task1: " << Task::status_to_string(status1) << ", "
+              << "Task2: " << Task::status_to_string(status2) << ", " << "Task3: " << Task::status_to_string(status3)
+              << std::endl;
   }
 
   scheduler.stop();

@@ -46,7 +46,6 @@ void Logger::setLevel(Level level) {
  * @brief Enables or disables console output for log messages
  *
  * Controls whether log messages are written to standard output.
- * Console output can be used independently of or in addition to file output.
  *
  * @param enable true to enable console output, false to disable
  *
@@ -125,6 +124,10 @@ void Logger::error(const std::string &message) {
  *
  */
 void Logger::log(Level level, const std::string &message) {
+  // Acquire exclusive lock for thread-safe logging operations
+  // This ensures that log messages from different threads don't interleave
+  std::lock_guard<std::mutex> lock(logMutex);
+
   // First check if this message should be output based on current log level
   // Messages with levels below the current threshold are ignored
   if (level < currentLevel) {
@@ -137,12 +140,31 @@ void Logger::log(Level level, const std::string &message) {
 
   // Output to console if console output is enabled
   if (consoleOutput) {
-    // Acquire exclusive lock for thread-safe logging operations
-    // This ensures that log messages from different threads don't interleave
-    std::lock_guard<std::mutex> lock(logMutex);
-
     std::cout << logMessage << std::endl;
   }
+}
+
+/**
+ * @brief Thread-safe conversion of time_t to local tm structure
+ *
+ * Converts a time_t value to a tm structure representing local time
+ * in a thread-safe manner. Uses platform-specific functions to ensure
+ * safety in multi-threaded environments.
+ *
+ * @param t The time_t value to convert
+ * @param out Reference to a tm structure to receive the result
+ * @return true on success, false on failure
+ *
+ * @note This function abstracts away platform differences:
+ * - On POSIX systems, localtime_r() is used for thread safety.
+ * - On Windows, localtime_s() is used for thread safety.
+ */
+static inline bool to_localtime_tm(std::time_t t, std::tm &out) {
+#if (defined(WIN32) || defined(_WIN32) || defined(__WIN32__))
+  return localtime_s(&out, &t) == 0;
+#else
+  return localtime_r(&t, &out) != nullptr;
+#endif
 }
 
 /**
@@ -154,24 +176,34 @@ void Logger::log(Level level, const std::string &message) {
  * @return Formatted timestamp string
  */
 std::string Logger::getCurrentTimestamp() {
+  using std::chrono::system_clock;
+
   // Get the current time point from the system clock
-  auto now = std::chrono::system_clock::now();
+  auto now = system_clock::now();
 
   // Convert to time_t for standard time formatting functions
-  auto time_t = std::chrono::system_clock::to_time_t(now);
+  auto time_t = system_clock::to_time_t(now);
 
   // Extract milliseconds component from the time point
   // This gives us sub-second precision for the timestamp
-  auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+  auto ms =
+      std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % std::chrono::milliseconds(1000);
 
-  // Format the date and time portion using standard library functions
-  // This produces "YYYY-MM-DD HH:MM:SS" format
+
   std::ostringstream oss;
-  oss << std::put_time(std::localtime(&time_t), "%Y-%m-%d %H:%M:%S");
+  std::tm            tm{};
 
-  // Append the milliseconds with proper zero-padding
-  // This produces ".mmm" format (e.g., ".001", ".123", ".999")
-  oss << '.' << std::setfill('0') << std::setw(3) << ms.count();
+  if (!to_localtime_tm(time_t, tm)) {
+    // Fallback: ISO-like with just epoch seconds if conversion fails
+    oss << time_t << '.' << std::setfill('0') << std::setw(3) << ms.count();
+  } else {
+    // Format the date and time portion using standard library functions
+    // This produces "YYYY-MM-DD HH:MM:SS" format
+    oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+    // Append the milliseconds with proper zero-padding
+    // This produces ".mmm" format (e.g., ".001", ".123", ".999")
+    oss << '.' << std::setfill('0') << std::setw(3) << ms.count();
+  }
 
   // Return the complete formatted timestamp string
   return oss.str();
