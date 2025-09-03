@@ -4,11 +4,13 @@
 #include <thread>
 #include <string>
 #include <ostream>
-#if defined(__APPLE__) || defined(__linux__)
-#include <pthread.h>
-#elif defined(_WIN32)
+#if defined(_WIN32) || defined(_WIN64) || defined(WIN32)
+/* Windows headers */
 #include <windows.h>
 #include <processthreadsapi.h>
+#elif defined(__APPLE__) || defined(__linux__)
+/* POSIX headers */
+#include <pthread.h>
 #endif
 
 namespace TaskSchedX {
