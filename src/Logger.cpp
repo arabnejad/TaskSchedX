@@ -125,6 +125,10 @@ void Logger::error(const std::string &message) {
  *
  */
 void Logger::log(Level level, const std::string &message) {
+  // Acquire exclusive lock for thread-safe logging operations
+  // This ensures that log messages from different threads don't interleave
+  std::lock_guard<std::mutex> lock(logMutex);
+
   // First check if this message should be output based on current log level
   // Messages with levels below the current threshold are ignored
   if (level < currentLevel) {
@@ -137,10 +141,6 @@ void Logger::log(Level level, const std::string &message) {
 
   // Output to console if console output is enabled
   if (consoleOutput) {
-    // Acquire exclusive lock for thread-safe logging operations
-    // This ensures that log messages from different threads don't interleave
-    std::lock_guard<std::mutex> lock(logMutex);
-
     std::cout << logMessage << std::endl;
   }
 }
