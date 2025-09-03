@@ -69,13 +69,13 @@ private:
    *
    * Initializes the logger with default settings (NONE level, console disabled).
    */
-  Logger() : currentLevel(Level::NONE), consoleOutput(false) {};
+  Logger() : currentLevel(Level::NONE), consoleOutput(false){};
 
   /**
    * @brief Destructor
    *
    */
-  ~Logger() {};
+  ~Logger(){};
 
   void log(Level level, const std::string &message);
 
