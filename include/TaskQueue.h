@@ -2,46 +2,47 @@
 #define TASKSCHEDX_TASKQUEUE_H
 
 #include <queue>
-#include <mutex>
-#include <functional>
-#include <chrono>
-#include <condition_variable>
 #include "Task.h"
 namespace TaskSchedX {
 
+// Comparator that delegates to Task::operator>() so that the priority queue’s top()
+// returns the highest-priority task (lower numeric priority, earlier startTime on ties)
+struct TaskPriorityCmp {
+  bool operator()(const std::shared_ptr<Task> &a, const std::shared_ptr<Task> &b) const {
+    return (*a) > (*b);
+  }
+};
+
 /**
  * @class TaskQueue
- * @brief Thread-safe priority queue for managing scheduled tasks
+ * @brief Priority queue of tasks ordered by priority then start time.
  *
- * The TaskQueue class provides a thread-safe wrapper around std::priority_queue
- * for managing Task objects. It ensures proper synchronization for concurrent
- * access by multiple threads while maintaining task priority ordering.
+ * *Thread-safety* : This container is not thread-safe. Callers
+ * (e.g., `TaskScheduler`) must guard all operations with their own
+ * mutex/condition variable to avoid missed wakeups.
  *
- * The queue uses Task::operator> for ordering, which prioritizes tasks by:
+ * *Ordering* : The queue uses Task::operator> for ordering, which prioritizes tasks by:
  * 1. Priority value (lower numbers first)
  * 2. Start execution time (earlier times first) for equal priorities
  *
  */
 class TaskQueue {
 public:
-  void addTask(const Task &task);
+  void push(const std::shared_ptr<Task> &task);
 
-  Task getTask();
+  std::shared_ptr<Task> pop();
 
   bool isEmpty() const;
 
   bool cancelTask(const std::string &taskId);
 
-  size_t size() const;
+  size_t size() const noexcept;
 
-  void clear();
+  void clear() noexcept;
 
 private:
   /** @brief  Priority queue storing tasks ordered by Task::operator> */
-  std::priority_queue<Task, std::vector<Task>, std::greater<Task>> queue;
-
-  /** @brief  Mutex for protecting queue operations from concurrent access */
-  mutable std::mutex queueMutex;
+  std::priority_queue<std::shared_ptr<Task>, std::vector<std::shared_ptr<Task>>, TaskPriorityCmp> pq;
 };
 } // namespace TaskSchedX
 

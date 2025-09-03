@@ -1,121 +1,91 @@
 #include "TaskQueue.h"
-#include <algorithm>
 
 namespace TaskSchedX {
 
 /**
  * @brief Adds a task to the priority queue
  *
- * Inserts a new task into the queue while maintaining priority order.
- * The queue uses Task::operator > for comparison, prioritizing tasks with
- * lower priority values and earlier start execution times.
- * The operation is thread-safe and will block other queue operations
- * during insertion.
+ * Add a new task into the queue while maintaining priority order.
  *
- * @param task The task to add to the queue (copied)
+ * @param task shared pointer to the task to enqueue
  *
  * @note Tasks are ordered by priority (lower values first), then by start execution time
+ * @note Not thread-safe. Callers must synchronize externally
  */
-void TaskQueue::addTask(const Task &task) {
-  // Acquire exclusive lock on the queue mutex to ensure thread safety
-  // This prevents other threads from modifying the queue during insertion
-  std::lock_guard<std::mutex> lock(queueMutex);
-  // Insert the task into the priority queue
-  // The queue automatically maintains ordering based on Task::operator >
-  // Tasks with lower priority values will be at the top of the queue
-  queue.push(task);
+void TaskQueue::push(const std::shared_ptr<Task> &task) {
+  pq.push(task);
 }
 
 /**
  * @brief Retrieves and removes the highest priority task from the queue
  *
  * Returns the task with the highest priority (lowest priority value)
- * and removes it from the queue. This operation is thread-safe but **assumes**
- * the queue is not empty.
+ * and removes it from the pq.
  *
- * @return Copy of the highest priority task
+ * @return the `std::shared_ptr<Task>` of the highest priority task
  *
  * @warning Calling this on an empty queue results in undefined behavior
  * @note Always check isEmpty() before calling this method
  */
-Task TaskQueue::getTask() {
-  // Acquire exclusive lock on the queue mutex for thread-safe access
-  std::lock_guard<std::mutex> lock(queueMutex);
-
-  // Get a copy of the highest priority task from the top of the queue
-  // The priority queue ensures this is the task that should execute next
-  Task task = queue.top();
-
-  // Remove the task from the queue now that we have a copy
-  // This prevents the same task from being retrieved multiple times
-  queue.pop();
-
-  // Return the copy of the task for execution
+std::shared_ptr<Task> TaskQueue::pop() {
+  auto task = pq.top();
+  pq.pop();
   return task;
 }
 
 /**
  * @brief Checks if the queue is empty
  *
- * Returns true if the queue contains no tasks. This provides a consistent
- * view of the queue state at the time of the call.
+ * Returns true if the queue contains no tasks.
  *
  * @return true if the queue is empty, false otherwise
  *
- * @note The queue state may change immediately after this call in multithreaded environments
+ * @note The queue state may change immediately after this call in multithreaded environments.
  */
 bool TaskQueue::isEmpty() const {
-  // Acquire shared lock on the queue mutex (const method uses mutable mutex)
-  // This allows multiple threads to check emptiness simultaneously
-  std::lock_guard<std::mutex> lock(queueMutex);
-
-  // Return whether the underlying priority queue is empty
-  return queue.empty();
+  return pq.empty();
 }
 
 /**
- * @brief Cancels a task by its unique identifier
+ * @brief Cancels a task by its unique identifier (if present).
  *
  * Searches for a task with the specified ID, marks it as cancelled,
- * and removes it from the queue. This operation requires scanning
- * the entire queue.
+ * and removes it from the queue.
  *
  * @param taskId The unique identifier of the task to cancel
  *
  * @return true if the task was found and cancelled, false otherwise
  *
- * @note The cancelled task is removed from the queue entirely
+ * @note Not thread-safe; callers must synchronize.
+ * @note This only affects tasks still in the queue, and not running tasks.
  */
 bool TaskQueue::cancelTask(const std::string &taskId) {
-  // Acquire exclusive lock for the entire cancellation operation
-  std::lock_guard<std::mutex> lock(queueMutex);
 
-  // Temporary vector to hold tasks while searching
-  std::vector<Task> tempTasks;
+  // Temporarily hold non-matching tasks
+  std::vector<std::shared_ptr<Task>> tempTasks;
+
   // Flag to track if the target task was found
   bool found = false;
 
   // Extract all tasks from the queue while searching for the target
-  while (!queue.empty()) {
-    Task task = queue.top(); // Get the top task
-    queue.pop();             // Remove it from the queue
+  while (!pq.empty()) {
+    auto task = pq.top();
+    pq.pop();
 
     // Check if this is the task we're looking for
-    if (task.getId() == taskId) {
-      // Found the target task - mark it as cancelled
-      task.setStatus(Task::Status::CANCELLED);
+    if (task->getId() == taskId) {
+      // Mark the matching task it as cancelled, and drop it
+      task->setStatus(Task::Status::CANCELLED);
       found = true;
-      // no need to added the cancelled task back to tempTasks
     } else {
-      // This is not the target task - keep it for re-insertion
+      // Keep non-matching tasks for reinsertion
       tempTasks.push_back(task);
     }
   }
 
-  // Re-insert all non-cancelled tasks back into the queue
-  // This restores the queue with all tasks except the cancelled one
-  for (const auto &task : tempTasks) {
-    queue.push(task);
+  // Re-insert all non-matching tasks back into the queue
+  for (auto &task : tempTasks) {
+    pq.push(task);
   }
 
   // Return whether the target task was found and cancelled
@@ -129,15 +99,12 @@ bool TaskQueue::cancelTask(const std::string &taskId) {
  *
  * @return Number of tasks in the queue
  *
- * @note The count may change immediately after this call in multithreaded environments
+ * @note The count may change immediately after this call in multithreaded
+ * environments.
  */
 
-size_t TaskQueue::size() const {
-  // Acquire shared lock for thread-safe access to queue size
-  std::lock_guard<std::mutex> lock(queueMutex);
-
-  // Return the current size of the underlying priority queue
-  return queue.size();
+size_t TaskQueue::size() const noexcept {
+  return pq.size();
 }
 
 /**
@@ -147,14 +114,11 @@ size_t TaskQueue::size() const {
  *
  * @warning All pending tasks will be lost and cannot be recovered
  */
-void TaskQueue::clear() {
-  // Acquire exclusive lock to prevent other operations during clearing
-  std::lock_guard<std::mutex> lock(queueMutex);
-
+void TaskQueue::clear() noexcept {
   // Remove all elements from the priority queue
   // This is done by repeatedly popping until the queue is empty
-  while (!queue.empty()) {
-    queue.pop();
+  while (!pq.empty()) {
+    pq.pop();
   }
 }
 
