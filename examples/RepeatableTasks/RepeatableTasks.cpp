@@ -21,7 +21,7 @@ int main() {
 
   // Configure logging for detailed output
   scheduler.setLogLevel(Logger::Level::INFO);
-  scheduler.enableConsoleLogging(true);
+  scheduler.setConsoleLoggingEnabled(true);
 
   // Counters to track task executions
   std::atomic<int> highPriorityCount(0);
@@ -31,40 +31,40 @@ int main() {
   TaskConfig taskConfig;
 
   // Schedule high priority repeatable task (every 2 seconds)
-  taskConfig.executeFn = [&highPriorityCount]() {
+  taskConfig.taskFn = [&highPriorityCount]() {
     int count = highPriorityCount.fetch_add(1) + 1;
     std::cout << "HIGH PRIORITY Task executed (execution #" << count << ")" << std::endl;
   };
   taskConfig.startTime      = std::chrono::system_clock::now() + std::chrono::seconds(1); // Start in 1 second
   taskConfig.priority       = 1;                       // High priority (lower number = higher priority)
-  taskConfig.repeatable     = true;                    // Repeatable task
-  taskConfig.repeatInterval = std::chrono::seconds(2); // Every 2 seconds
+  taskConfig.isRepeatable     = true;                    // Repeatable task
+  taskConfig.repeatEvery = std::chrono::seconds(2); // Every 2 seconds
 
   std::string highPriorityTaskId = scheduler.scheduleTask(taskConfig);
   std::cout << "🆗 Scheduled high priority repeatable task with ID: " << highPriorityTaskId << std::endl;
 
   // Schedule medium priority repeatable task (every 3 seconds)
-  taskConfig.executeFn = [&mediumPriorityCount]() {
+  taskConfig.taskFn = [&mediumPriorityCount]() {
     int count = mediumPriorityCount.fetch_add(1) + 1;
     std::cout << "MEDIUM PRIORITY Task executed (execution #" << count << ")" << std::endl;
   };
   taskConfig.startTime      = std::chrono::system_clock::now() + std::chrono::seconds(1); // Start in 1 second
   taskConfig.priority       = 5;                                                          // Medium priority
-  taskConfig.repeatable     = true;                                                       // Repeatable task
-  taskConfig.repeatInterval = std::chrono::seconds(3);                                    // Every 3 seconds
+  taskConfig.isRepeatable     = true;                                                       // Repeatable task
+  taskConfig.repeatEvery = std::chrono::seconds(3);                                    // Every 3 seconds
 
   std::string mediumPriorityTaskId = scheduler.scheduleTask(taskConfig);
   std::cout << "🆗 Scheduled medium priority repeatable task with ID: " << mediumPriorityTaskId << std::endl;
 
   // Schedule low priority repeatable task (every 5 seconds)
-  taskConfig.executeFn = [&lowPriorityCount]() {
+  taskConfig.taskFn = [&lowPriorityCount]() {
     int count = lowPriorityCount.fetch_add(1) + 1;
     std::cout << "LOW PRIORITY Task executed (execution #" << count << ")" << std::endl;
   };
   taskConfig.startTime      = std::chrono::system_clock::now() + std::chrono::seconds(1); // Start in 1 second
   taskConfig.priority       = 10;                                                         // Low priority
-  taskConfig.repeatable     = true;                                                       // Repeatable task
-  taskConfig.repeatInterval = std::chrono::seconds(5);                                    // Every 5 seconds
+  taskConfig.isRepeatable     = true;                                                       // Repeatable task
+  taskConfig.repeatEvery = std::chrono::seconds(5);                                    // Every 5 seconds
 
   std::string lowPriorityTaskId = scheduler.scheduleTask(taskConfig);
   std::cout << "🆗 Scheduled low priority repeatable task with ID: " << lowPriorityTaskId << std::endl;
@@ -92,7 +92,7 @@ int main() {
   std::cout << "Tasks completed: " << finalStats.tasksCompleted << std::endl;
   std::cout << "Tasks failed: " << finalStats.tasksFailed << std::endl;
   std::cout << "Tasks cancelled: " << finalStats.tasksCancelled << std::endl;
-  std::cout << "Tasks timed out: " << finalStats.tasksTimedOut << std::endl;
+  std::cout << "Tasks timed out: " << finalStats.tasksTimeout << std::endl;
   if (finalStats.totalTasksScheduled > 0) {
     std::cout << std::fixed << std::setprecision(1);
     std::cout << "Failure rate: " << (100.0 * finalStats.tasksFailed / finalStats.totalTasksScheduled) << "%"

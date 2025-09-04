@@ -21,33 +21,33 @@ int main() {
 
   // Configure basic logging
   scheduler.setLogLevel(Logger::Level::INFO);
-  scheduler.enableConsoleLogging(true);
+  scheduler.setConsoleLoggingEnabled(true);
 
   std::cout << "\n🗓️ Step 2: Scheduling simple tasks..." << std::endl;
 
   // === Schedule a simple immediate task ===
   TaskConfig task1Config;
-  task1Config.executeFn  = []() { std::cout << "Hello from Task 1! This is a simple scheduled task." << std::endl; };
+  task1Config.taskFn  = []() { std::cout << "Hello from Task 1! This is a simple scheduled task." << std::endl; };
   task1Config.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(1); // Execute in 1 second
   task1Config.priority   = 1;                                                          // Priority 1
-  task1Config.repeatable = false;                                                      // non-Repeatable
+  task1Config.isRepeatable = false;                                                      // non-Repeatable
   std::string task1Id    = scheduler.scheduleTask(task1Config);
   std::cout << "🆗 Scheduled Task 1 (immediate) with ID: " << task1Id << std::endl;
 
   // === Schedule a delayed task ===
   TaskConfig task2Config;
-  task2Config.executeFn = []() {
+  task2Config.taskFn = []() {
     std::cout << "Hello from Task 2! This task was scheduled for later execution." << std::endl;
   };
   task2Config.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(3); // Execute in 3 seconds
   task2Config.priority   = 2;                                                          // Priority 2
-  task2Config.repeatable = false;                                                      // non-Repeatable
+  task2Config.isRepeatable = false;                                                      // non-Repeatable
   std::string task2Id    = scheduler.scheduleTask(task2Config);
   std::cout << "🆗 Scheduled Task 2 (delayed) with ID: " << task2Id << std::endl;
 
   // === Schedule a task with some work to do ===
   TaskConfig task3Config;
-  task3Config.executeFn = []() {
+  task3Config.taskFn = []() {
     std::cout << "Task 3 started - simulating some work..." << std::endl;
     for (int i = 1; i <= 5; ++i) {
       // This task simulates some work by logging progress
@@ -58,7 +58,7 @@ int main() {
   };
   task3Config.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(2); // Execute in 2 seconds
   task3Config.priority   = 1;                                                          // Priority 1
-  task3Config.repeatable = false;                                                      // non-Repeatable
+  task3Config.isRepeatable = false;                                                      // non-Repeatable
   std::string task3Id    = scheduler.scheduleTask(task3Config);
   std::cout << "🆗 Scheduled Task 3 (with work) with ID: " << task3Id << std::endl;
 
@@ -100,7 +100,7 @@ int main() {
   std::cout << "Tasks completed: " << finalStats.tasksCompleted << std::endl;
   std::cout << "Tasks failed: " << finalStats.tasksFailed << std::endl;
   std::cout << "Tasks cancelled: " << finalStats.tasksCancelled << std::endl;
-  std::cout << "Tasks timed out: " << finalStats.tasksTimedOut << std::endl;
+  std::cout << "Tasks timed out: " << finalStats.tasksTimeout << std::endl;
 
   return 0;
 }

@@ -55,7 +55,7 @@ The **TaskSchedX Library** is a high-performance C++11+ task scheduling and exec
 #include "TaskScheduler.h"
 
 TaskSchedX::TaskScheduler scheduler(4);
-scheduler.enableConsoleLogging(true);
+scheduler.setConsoleLoggingEnabled(true);
 scheduler.setLogLevel(Logger::Level::INFO);
 ```
 
@@ -63,10 +63,10 @@ scheduler.setLogLevel(Logger::Level::INFO);
 
 ```cpp
 TaskSchedX::TaskConfig config;
-config.executeFn = []() { std::cout << "Hello, Task!" << std::endl; };
+config.taskFn = []() { std::cout << "Hello, Task!" << std::endl; };
 config.startTime = std::chrono::system_clock::now() + std::chrono::seconds(2);
 config.priority  = 1;
-config.repeatable = false;
+config.isRepeatable = false;
 scheduler.scheduleTask(config);
 ```
 
@@ -74,9 +74,9 @@ scheduler.scheduleTask(config);
 
 ```cpp
 TaskSchedX::TaskConfig repeatTask;
-repeatTask.executeFn = []() { std::cout << "Tick..." << std::endl; };
-repeatTask.repeatable = true;
-repeatTask.repeatInterval = std::chrono::seconds(5);
+repeatTask.taskFn = []() { std::cout << "Tick..." << std::endl; };
+repeatTask.isRepeatable = true;
+repeatTask.repeatEvery = std::chrono::seconds(5);
 scheduler.scheduleTask(repeatTask);
 ```
 
@@ -106,7 +106,7 @@ std::cout << "Total tasks scheduled: " << stats.totalTasksScheduled << std::endl
 std::cout << "Tasks completed: " << stats.tasksCompleted << std::endl;
 std::cout << "Tasks failed: " << stats.tasksFailed << std::endl;
 std::cout << "Tasks cancelled: " << stats.tasksCancelled << std::endl;
-std::cout << "Tasks timed out: " << stats.tasksTimedOut << std::endl;
+std::cout << "Tasks timed out: " << stats.tasksTimeout << std::endl;
 
 ```
 

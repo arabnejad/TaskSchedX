@@ -22,7 +22,7 @@ int main() {
 
   // Configure logging
   scheduler.setLogLevel(Logger::Level::INFO);
-  scheduler.enableConsoleLogging(true);
+  scheduler.setConsoleLoggingEnabled(true);
 
   std::atomic<int> repeatCount(0);
 
@@ -30,7 +30,7 @@ int main() {
 
   // === Successful Tasks ===
   TaskConfig success;
-  success.executeFn = []() { std::cout << "✅ Success task executed" << std::endl; };
+  success.taskFn = []() { std::cout << "✅ Success task executed" << std::endl; };
   success.startTime = std::chrono::system_clock::now() + std::chrono::milliseconds(200);
 
   std::string taskIdSuccess = scheduler.scheduleTask(success);
@@ -38,7 +38,7 @@ int main() {
 
   // === Failing Tasks ===
   TaskConfig fail;
-  fail.executeFn = []() {
+  fail.taskFn = []() {
     std::cout << "❌ Failure task running" << std::endl;
     throw std::runtime_error("Intentional failure");
   };
@@ -49,24 +49,24 @@ int main() {
 
   // === Timeout Tasks ===
   TaskConfig timeout;
-  timeout.executeFn = []() {
+  timeout.taskFn = []() {
     std::cout << "⏳ Timeout task running" << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(3));
   };
   timeout.startTime        = std::chrono::system_clock::now() + std::chrono::milliseconds(600);
-  timeout.executionTimeout = std::chrono::seconds(1);
+  timeout.timeout = std::chrono::seconds(1);
 
   std::string taskIdTimeout = scheduler.scheduleTask(timeout);
   std::cout << "🆗 Scheduled timeout task with ID: " << taskIdTimeout << " (1s timeout)" << std::endl;
 
   // === Repeatable Task (cancel later) ===
   TaskConfig repeatable;
-  repeatable.executeFn = [&repeatCount]() {
+  repeatable.taskFn = [&repeatCount]() {
     int count = repeatCount.fetch_add(1) + 1;
     std::cout << "🔁 Repeatable task run #" << count << std::endl;
   };
-  repeatable.repeatable     = true;
-  repeatable.repeatInterval = std::chrono::seconds(1);
+  repeatable.isRepeatable     = true;
+  repeatable.repeatEvery = std::chrono::seconds(1);
   repeatable.startTime      = std::chrono::system_clock::now() + std::chrono::milliseconds(800);
 
   std::string taskIdRepeatable = scheduler.scheduleTask(repeatable);
@@ -74,7 +74,7 @@ int main() {
 
   // === Tasks to Cancel ===
   TaskConfig cancellable;
-  cancellable.executeFn = []() { std::cout << "🚫 This should not run!" << std::endl; };
+  cancellable.taskFn = []() { std::cout << "🚫 This should not run!" << std::endl; };
   cancellable.startTime = std::chrono::system_clock::now() + std::chrono::seconds(5);
 
   std::string taskIdCancellable = scheduler.scheduleTask(cancellable);
@@ -107,11 +107,11 @@ int main() {
   std::cout << "Tasks completed: " << finalStats.tasksCompleted << std::endl;
   std::cout << "Tasks failed: " << finalStats.tasksFailed << std::endl;
   std::cout << "Tasks cancelled: " << finalStats.tasksCancelled << std::endl;
-  std::cout << "Tasks timed out: " << finalStats.tasksTimedOut << std::endl;
+  std::cout << "Tasks timed out: " << finalStats.tasksTimeout << std::endl;
 
   // Calculate and display performance metrics
   size_t totalProcessed =
-      finalStats.tasksCompleted + finalStats.tasksFailed + finalStats.tasksCancelled + finalStats.tasksTimedOut;
+      finalStats.tasksCompleted + finalStats.tasksFailed + finalStats.tasksCancelled + finalStats.tasksTimeout;
 
   std::cout << "\n=== Performance Metrics ===" << std::endl;
   std::cout << "Total tasks processed: " << totalProcessed << std::endl;
@@ -120,7 +120,7 @@ int main() {
   std::cout << "Success rate: " << (100.0 * finalStats.tasksCompleted / totalProcessed) << "%" << std::endl;
   std::cout << "Failure rate: " << (100.0 * finalStats.tasksFailed / totalProcessed) << "%" << std::endl;
   std::cout << "Cancellation rate: " << (100.0 * finalStats.tasksCancelled / totalProcessed) << "%" << std::endl;
-  std::cout << "Timeout rate: " << (100.0 * finalStats.tasksTimedOut / totalProcessed) << "%" << std::endl;
+  std::cout << "Timeout rate: " << (100.0 * finalStats.tasksTimeout / totalProcessed) << "%" << std::endl;
 
   return 0;
 }

@@ -18,12 +18,12 @@ int main() {
 
   // Set up logging
   scheduler.setLogLevel(Logger::Level::INFO);
-  scheduler.enableConsoleLogging(true);
+  scheduler.setConsoleLoggingEnabled(true);
 
   std::cout << "\n🗓️ Scheduling a long-running task with progress reporting..." << std::endl;
 
   TaskConfig taskConfig;
-  taskConfig.executeFn = []() {
+  taskConfig.taskFn = []() {
     std::cout << "=== Long-running task started ===" << std::endl;
     std::cout << "Beginning data processing simulation..." << std::endl;
     // Simulate a long-running process with progress updates
@@ -36,7 +36,7 @@ int main() {
   };
   taskConfig.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(1);
   taskConfig.priority   = 1;     // Priority 1
-  taskConfig.repeatable = false; // non-Repeatable
+  taskConfig.isRepeatable = false; // non-Repeatable
 
   std::string taskId = scheduler.scheduleTask(taskConfig);
 
@@ -65,7 +65,7 @@ int main() {
   std::cout << "Tasks completed: " << finalStats.tasksCompleted << std::endl;
   std::cout << "Tasks failed: " << finalStats.tasksFailed << std::endl;
   std::cout << "Tasks cancelled: " << finalStats.tasksCancelled << std::endl;
-  std::cout << "Tasks timed out: " << finalStats.tasksTimedOut << std::endl;
+  std::cout << "Tasks timed out: " << finalStats.tasksTimeout << std::endl;
   if (finalStats.totalTasksScheduled > 0) {
     std::cout << std::fixed << std::setprecision(1);
     std::cout << "Failure rate: " << (100.0 * finalStats.tasksFailed / finalStats.totalTasksScheduled) << "%"

@@ -44,8 +44,8 @@ TEST_F(ThreadPoolTest, BasicExecution) {
   std::atomic<int> counter(0);
 
   // Enqueue a simple task
-  std::function<void()> executeFn = [&counter]() { counter.fetch_add(1); };
-  pool.enqueueTask(executeFn);
+  std::function<void()> taskFn = [&counter]() { counter.fetch_add(1); };
+  pool.enqueueTask(taskFn);
 
   // Wait for task to complete
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -59,9 +59,9 @@ TEST_F(ThreadPoolTest, MultipleExecution) {
   const int        NUM_TASKS = 10;
 
   // Enqueue multiple tasks
-  std::function<void()> executeFn = [&counter]() { counter.fetch_add(1); };
+  std::function<void()> taskFn = [&counter]() { counter.fetch_add(1); };
   for (int i = 0; i < NUM_TASKS; ++i) {
-    pool.enqueueTask(executeFn);
+    pool.enqueueTask(taskFn);
   }
 
   // Wait for all tasks to complete
@@ -78,7 +78,7 @@ TEST_F(ThreadPoolTest, ConcurrentExecution) {
   std::atomic<int> completed(0);
   const int        NUM_TASKS = 8;
 
-  std::function<void()> executeFn = [&running, &maxRunning, &completed]() {
+  std::function<void()> taskFn = [&running, &maxRunning, &completed]() {
     // Update max concurrent if needed
     running.fetch_add(1);
     int now    = running.load();
@@ -93,7 +93,7 @@ TEST_F(ThreadPoolTest, ConcurrentExecution) {
 
   // Enqueue tasks that track concurrency
   for (int i = 0; i < NUM_TASKS; ++i) {
-    pool.enqueueTask(executeFn);
+    pool.enqueueTask(taskFn);
   }
 
   // Wait for all tasks to complete
@@ -134,14 +134,14 @@ TEST_F(ThreadPoolTest, StopFunctionality) {
   ThreadPool       pool(2);
   std::atomic<int> counter(0);
 
-  std::function<void()> executeFn = [&counter]() {
+  std::function<void()> taskFn = [&counter]() {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     counter.fetch_add(1);
   };
 
   // Enqueue some tasks
   for (int i = 0; i < 5; ++i) {
-    pool.enqueueTask(executeFn);
+    pool.enqueueTask(taskFn);
   }
 
   // Let some tasks start
@@ -230,7 +230,7 @@ TEST_F(ThreadPoolTest, PerformanceTest) {
     ThreadPool       pool(numThreads);
     std::atomic<int> completedTasks(0);
 
-    std::function<void()> executeFn = [&completedTasks]() {
+    std::function<void()> taskFn = [&completedTasks]() {
       // Simulate CPU work
       volatile long sum = 0;
       for (int j = 0; j < 10000; ++j) {
@@ -243,7 +243,7 @@ TEST_F(ThreadPoolTest, PerformanceTest) {
 
     // Enqueue CPU-bound tasks
     for (int i = 0; i < NUM_TASKS; ++i) {
-      pool.enqueueTask(executeFn);
+      pool.enqueueTask(taskFn);
     }
 
     // Wait for completion
@@ -268,7 +268,7 @@ TEST_F(ThreadPoolTest, LongRunningTasks) {
   std::atomic<int> startedTasks(0);
   std::atomic<int> completedTasks(0);
 
-  std::function<void()> executeFn = [&startedTasks, &completedTasks]() {
+  std::function<void()> taskFn = [&startedTasks, &completedTasks]() {
     startedTasks.fetch_add(1);
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     completedTasks.fetch_add(1);
@@ -276,7 +276,7 @@ TEST_F(ThreadPoolTest, LongRunningTasks) {
 
   // Enqueue long-running tasks
   for (int i = 0; i < 4; ++i) {
-    pool.enqueueTask(executeFn);
+    pool.enqueueTask(taskFn);
   }
 
   // Check that tasks start executing
@@ -294,7 +294,7 @@ TEST_F(ThreadPoolTest, LongRunningTasks) {
 TEST_F(ThreadPoolTest, DestructorWaitsForTasks) {
   std::atomic<int> completedTasks(0);
 
-  std::function<void()> executeFn = [&completedTasks]() {
+  std::function<void()> taskFn = [&completedTasks]() {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     completedTasks.fetch_add(1);
   };
@@ -304,7 +304,7 @@ TEST_F(ThreadPoolTest, DestructorWaitsForTasks) {
 
     // Enqueue tasks that take some time
     for (int i = 0; i < 4; ++i) {
-      pool.enqueueTask(executeFn);
+      pool.enqueueTask(taskFn);
     }
 
     // Let some tasks start

@@ -19,7 +19,7 @@ int main() {
 
   // Configure logging
   scheduler.setLogLevel(Logger::Level::INFO);
-  scheduler.enableConsoleLogging(true);
+  scheduler.setConsoleLoggingEnabled(true);
 
   // Vector to store task IDs for tracking
   std::vector<std::string> taskIds;
@@ -31,52 +31,52 @@ int main() {
 
   // === Priority 15 (lowest priority) - should execute last ===
   TaskConfig taskConfig;
-  taskConfig.executeFn = []() {
+  taskConfig.taskFn = []() {
     std::cout << "Task (PRIORITY 15) — Expected: #7 - Lowest" << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Small delay to see ordering
   };
   taskConfig.startTime  = startTime;
   taskConfig.priority   = 15;    // Priority 15, lowest priority
-  taskConfig.repeatable = false; // non-Repeatable
+  taskConfig.isRepeatable = false; // non-Repeatable
 
   std::string lowPriorityId = scheduler.scheduleTask(taskConfig);
   taskIds.push_back(lowPriorityId);
   std::cout << "🆗 Scheduled LOWEST priority task (15) with ID: " << lowPriorityId << std::endl;
 
   // === Priority 1 (highest priority) - should execute first ===
-  taskConfig.executeFn = []() {
+  taskConfig.taskFn = []() {
     std::cout << "Task (PRIORITY 1) — Expected: #2 - Highest priority" << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Small delay to see ordering
   };
   taskConfig.startTime  = startTime;
   taskConfig.priority   = 1;     // Priority 1, highest priority
-  taskConfig.repeatable = false; // non-Repeatable
+  taskConfig.isRepeatable = false; // non-Repeatable
 
   std::string highPriorityId = scheduler.scheduleTask(taskConfig);
   taskIds.push_back(highPriorityId);
   std::cout << "🆗 Scheduled HIGHEST priority task (1) with ID: " << highPriorityId << std::endl;
 
   // === Priority 10 (medium-low priority) ===
-  taskConfig.executeFn = []() {
+  taskConfig.taskFn = []() {
     std::cout << "Task (PRIORITY 10) — Expected: #6 - Medium-low" << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Small delay to see ordering
   };
   taskConfig.startTime  = startTime;
   taskConfig.priority   = 10;    // Priority 10, second lowest priority
-  taskConfig.repeatable = false; // non-Repeatable
+  taskConfig.isRepeatable = false; // non-Repeatable
 
   std::string mediumLowPriorityId = scheduler.scheduleTask(taskConfig);
   taskIds.push_back(mediumLowPriorityId);
   std::cout << "🆗 Scheduled MEDIUM-LOW priority task (10) with ID: " << mediumLowPriorityId << std::endl;
 
   // === Priority 5 (medium priority) ===
-  taskConfig.executeFn = []() {
+  taskConfig.taskFn = []() {
     std::cout << "Task (PRIORITY 5) — Expected: #5 - Medium priority" << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Small delay to see ordering
   };
   taskConfig.startTime  = startTime;
   taskConfig.priority   = 5;     // Priority 5, second highest priority
-  taskConfig.repeatable = false; // non-Repeatable
+  taskConfig.isRepeatable = false; // non-Repeatable
 
   std::string mediumPriorityId = scheduler.scheduleTask(taskConfig);
   taskIds.push_back(mediumPriorityId);
@@ -87,10 +87,10 @@ int main() {
 
   // === Task with priority 3 (earlier label) ===
   // This task has the same priority but is scheduled earlier than the next one
-  taskConfig.executeFn  = []() { std::cout << "Task (PRIORITY 3-A) — Expected: #3" << std::endl; };
+  taskConfig.taskFn  = []() { std::cout << "Task (PRIORITY 3-A) — Expected: #3" << std::endl; };
   taskConfig.startTime  = startTime;
   taskConfig.priority   = 3;     // Priority 3,
-  taskConfig.repeatable = false; // non-Repeatable
+  taskConfig.isRepeatable = false; // non-Repeatable
 
   std::string earlierPriority3Id = scheduler.scheduleTask(taskConfig);
   taskIds.push_back(earlierPriority3Id);
@@ -98,10 +98,10 @@ int main() {
 
   // === Task with priority 3 (later label) ===
   // This task has the same priority but is scheduled later than the previous one
-  taskConfig.executeFn  = []() { std::cout << "Task (PRIORITY 3-B) — Expected: #4" << std::endl; };
+  taskConfig.taskFn  = []() { std::cout << "Task (PRIORITY 3-B) — Expected: #4" << std::endl; };
   taskConfig.startTime  = startTime;
   taskConfig.priority   = 3;     // Priority 3,
-  taskConfig.repeatable = false; // non-Repeatable
+  taskConfig.isRepeatable = false; // non-Repeatable
 
   std::string laterPriority3Id = scheduler.scheduleTask(taskConfig);
   taskIds.push_back(laterPriority3Id);
@@ -111,10 +111,10 @@ int main() {
   // These tasks should execute immediately and have the highest priority
   std::cout << "\n🗓️ Adding immediate high priority tasks:" << std::endl;
 
-  taskConfig.executeFn = []() { std::cout << "Task (PRIORITY 0) — Expected: #1 - Immediate execution" << std::endl; };
+  taskConfig.taskFn = []() { std::cout << "Task (PRIORITY 0) — Expected: #1 - Immediate execution" << std::endl; };
   taskConfig.startTime = std::chrono::system_clock::now(); // Immediate execution
   taskConfig.priority  = 0;                                // Priority 0, highest priority
-  taskConfig.repeatable = false;                           // non-Repeatable
+  taskConfig.isRepeatable = false;                           // non-Repeatable
 
   std::string immediateId = scheduler.scheduleTask(taskConfig);
   taskIds.push_back(immediateId);
@@ -155,7 +155,7 @@ int main() {
   std::cout << "Tasks completed: " << finalStats.tasksCompleted << std::endl;
   std::cout << "Tasks failed: " << finalStats.tasksFailed << std::endl;
   std::cout << "Tasks cancelled: " << finalStats.tasksCancelled << std::endl;
-  std::cout << "Tasks timed out: " << finalStats.tasksTimedOut << std::endl;
+  std::cout << "Tasks timed out: " << finalStats.tasksTimeout << std::endl;
   if (finalStats.totalTasksScheduled > 0) {
     std::cout << std::fixed << std::setprecision(1);
     std::cout << "Failure rate: " << (100.0 * finalStats.tasksFailed / finalStats.totalTasksScheduled) << "%"

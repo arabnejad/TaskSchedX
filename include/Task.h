@@ -62,7 +62,7 @@ public:
   }
 
   Task(std::function<void()> func, std::chrono::system_clock::time_point startTime, int priority,
-       bool repeatable = false, std::chrono::seconds repeatInterval = std::chrono::seconds(10),
+       bool isRepeatable = false, std::chrono::seconds repeatEvery = std::chrono::seconds(10),
        std::chrono::seconds maxExecTime = std::chrono::seconds(60));
 
   // Copy constructor
@@ -96,7 +96,7 @@ public:
   static std::string getCurrentThreadName();
 
   /** @brief The function to execute */
-  std::function<void()> executeFn;
+  std::function<void()> taskFn;
   /** @brief  Scheduled start execution time*/
   std::chrono::system_clock::time_point startTime;
   /** @brief Task priority (lower = higher priority) */
@@ -104,11 +104,11 @@ public:
   /** @brief  Current execution status (thread-safe) */
   std::atomic<Status> status;
   /** @brief  Whether task repeats after completion */
-  bool repeatable;
+  bool isRepeatable;
   /** @brief  Time between repeated task executions */
-  std::chrono::seconds repeatInterval;
+  std::chrono::seconds repeatEvery;
   /** @brief Maximum allowed execution time */
-  std::chrono::seconds executionTimeout;
+  std::chrono::seconds timeout;
 
 private:
   /** @brief Unique task identifier */

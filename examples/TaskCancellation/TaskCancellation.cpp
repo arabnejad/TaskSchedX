@@ -17,14 +17,14 @@ int main() {
   std::cout << "✅ TaskScheduler created successfully" << std::endl;
   // Configure logging
   scheduler.setLogLevel(Logger::Level::INFO);
-  scheduler.enableConsoleLogging(true);
+  scheduler.setConsoleLoggingEnabled(true);
 
   std::atomic<int> longTaskCount(0);
   std::atomic<int> repeatCount(0);
 
   // === Cancel before execution ===
   TaskConfig preCancel;
-  preCancel.executeFn         = []() { std::cout << "🚨 Should not run 🚨\n"; };
+  preCancel.taskFn         = []() { std::cout << "🚨 Should not run 🚨\n"; };
   preCancel.startTime         = std::chrono::system_clock::now() + std::chrono::seconds(3);
   std::string taskIdPreCancel = scheduler.scheduleTask(preCancel);
   std::cout << "🆗 Scheduled task (pre-cancel) with ID: " << taskIdPreCancel << std::endl;
@@ -34,7 +34,7 @@ int main() {
 
   // === Cancel during long-running execution ===
   TaskConfig longTask;
-  longTask.executeFn = [&]() {
+  longTask.taskFn = [&]() {
     longTaskCount++;
     std::cout << "🕐 Long task started" << std::endl;
     for (int i = 1; i <= 10; ++i) {
@@ -49,13 +49,13 @@ int main() {
 
   // === Cancel repeatable task after 3 runs ===
   TaskConfig repeatTask;
-  repeatTask.executeFn = [&]() {
+  repeatTask.taskFn = [&]() {
     int c = repeatCount.fetch_add(1) + 1;
     std::cout << "🔁 Repeat #" << c << std::endl;
   };
   repeatTask.startTime         = std::chrono::system_clock::now() + std::chrono::seconds(1);
-  repeatTask.repeatable        = true;
-  repeatTask.repeatInterval    = std::chrono::seconds(1);
+  repeatTask.isRepeatable        = true;
+  repeatTask.repeatEvery    = std::chrono::seconds(1);
   std::string taskIdRepeatTask = scheduler.scheduleTask(repeatTask);
   std::cout << "🆗 Scheduled repeatable task with ID: " << taskIdRepeatTask << std::endl;
 
@@ -96,7 +96,7 @@ int main() {
   std::cout << "Tasks completed: " << finalStats.tasksCompleted << std::endl;
   std::cout << "Tasks failed: " << finalStats.tasksFailed << std::endl;
   std::cout << "Tasks cancelled: " << finalStats.tasksCancelled << std::endl;
-  std::cout << "Tasks timed out: " << finalStats.tasksTimedOut << std::endl;
+  std::cout << "Tasks timed out: " << finalStats.tasksTimeout << std::endl;
   std::cout << "\nNote: 'Tasks completed' includes each run of repeatable tasks.\n";
 
   return 0;

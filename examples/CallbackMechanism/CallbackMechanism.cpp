@@ -17,10 +17,10 @@ int main() {
 
   // Set up logging
   scheduler.setLogLevel(Logger::Level::INFO);
-  scheduler.enableConsoleLogging(true);
+  scheduler.setConsoleLoggingEnabled(true);
 
   // === Register a callback to be executed when any task is complete ===
-  scheduler.onTaskComplete([](const std::string &taskId, Task::Status status) {
+  scheduler.setTaskCompletionCallback([](const std::string &taskId, Task::Status status) {
     std::cout << "[🛎️ CALLBACK 🛎️] Task completion callback triggered!" << std::endl;
     std::cout << "[🛎️ CALLBACK 🛎️] Task " << taskId << " finished with status: " << Task::status_to_string(status)
               << std::endl;
@@ -30,10 +30,10 @@ int main() {
 
   // === Define a task ===
   TaskConfig taskConfig;
-  taskConfig.executeFn  = []() { std::cout << "Task 1 executed" << std::endl; };
+  taskConfig.taskFn  = []() { std::cout << "Task 1 executed" << std::endl; };
   taskConfig.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(1); // Execute in 1 second
   taskConfig.priority   = 1;                                                          // Priority 1
-  taskConfig.repeatable = false;                                                      // non-Repeatable
+  taskConfig.isRepeatable = false;                                                      // non-Repeatable
   std::string taskId    = scheduler.scheduleTask(taskConfig);
   std::cout << "\n🆗 Scheduled task with ID: " << taskId << std::endl;
 
@@ -55,7 +55,7 @@ int main() {
   std::cout << "Tasks completed: " << finalStats.tasksCompleted << std::endl;
   std::cout << "Tasks failed: " << finalStats.tasksFailed << std::endl;
   std::cout << "Tasks cancelled: " << finalStats.tasksCancelled << std::endl;
-  std::cout << "Tasks timed out: " << finalStats.tasksTimedOut << std::endl;
+  std::cout << "Tasks timed out: " << finalStats.tasksTimeout << std::endl;
 
   return 0;
 }

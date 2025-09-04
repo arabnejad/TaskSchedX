@@ -25,10 +25,10 @@ TEST_F(TaskSchedulerTest, BasicScheduling) {
   std::atomic<int> count{0};
 
   TaskConfig config;
-  config.executeFn  = [&]() { ++count; };
+  config.taskFn  = [&]() { ++count; };
   config.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(1);
   config.priority   = 1;
-  config.repeatable = false;
+  config.isRepeatable = false;
   std::string id    = scheduler.scheduleTask(config);
 
   scheduler.start();
@@ -44,11 +44,11 @@ TEST_F(TaskSchedulerTest, RepeatingTask) {
   std::atomic<int> count{0};
 
   TaskConfig config;
-  config.executeFn      = [&]() { ++count; };
+  config.taskFn      = [&]() { ++count; };
   config.startTime      = std::chrono::system_clock::now() + std::chrono::milliseconds(500);
   config.priority       = 1;
-  config.repeatable     = true;
-  config.repeatInterval = std::chrono::seconds(1); // repeat every 1 second
+  config.isRepeatable     = true;
+  config.repeatEvery = std::chrono::seconds(1); // repeat every 1 second
   scheduler.scheduleTask(config);
 
   scheduler.start();
@@ -68,7 +68,7 @@ TEST_F(TaskSchedulerTest, PriorityExecutionOrder) {
   TaskConfig task1;
   task1.startTime = now;
   task1.priority  = 3;
-  task1.executeFn = [&]() {
+  task1.taskFn = [&]() {
     std::lock_guard<std::mutex> l(orderMutex);
     executionOrder.push_back(3);
   };
@@ -76,7 +76,7 @@ TEST_F(TaskSchedulerTest, PriorityExecutionOrder) {
   TaskConfig task2;
   task2.startTime = now;
   task2.priority  = 1;
-  task2.executeFn = [&]() {
+  task2.taskFn = [&]() {
     std::lock_guard<std::mutex> l(orderMutex);
     executionOrder.push_back(1);
   };
@@ -84,7 +84,7 @@ TEST_F(TaskSchedulerTest, PriorityExecutionOrder) {
   TaskConfig task3;
   task3.startTime = now;
   task3.priority  = 2;
-  task3.executeFn = [&]() {
+  task3.taskFn = [&]() {
     std::lock_guard<std::mutex> l(orderMutex);
     executionOrder.push_back(2);
   };
@@ -107,10 +107,10 @@ TEST_F(TaskSchedulerTest, CancelBeforeStart) {
   std::atomic<int> ran{0};
 
   TaskConfig config;
-  config.executeFn  = [&]() { ++ran; };
+  config.taskFn  = [&]() { ++ran; };
   config.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(2);
   config.priority   = 1;
-  config.repeatable = false;
+  config.isRepeatable = false;
   std::string id    = scheduler.scheduleTask(config);
 
   // Cancel before starting scheduler
@@ -129,13 +129,13 @@ TEST_F(TaskSchedulerTest, CancelDuringExecution) {
   std::atomic<bool> taskStarted{false};
 
   TaskConfig config;
-  config.executeFn = [&]() {
+  config.taskFn = [&]() {
     taskStarted = true;
     std::this_thread::sleep_for(std::chrono::seconds(2)); // Simulate task
   };
   config.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(1);
   config.priority   = 1;
-  config.repeatable = false;
+  config.isRepeatable = false;
 
   std::string id = scheduler.scheduleTask(config);
 
@@ -169,18 +169,18 @@ TEST_F(TaskSchedulerTest, TaskErrorHandling) {
 
   // Schedule a successful task
   TaskConfig successTasksConfig;
-  successTasksConfig.executeFn  = [&]() { successfulTasks.fetch_add(1); };
+  successTasksConfig.taskFn  = [&]() { successfulTasks.fetch_add(1); };
   successTasksConfig.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(1);
   successTasksConfig.priority   = 1;
-  successTasksConfig.repeatable = false;
+  successTasksConfig.isRepeatable = false;
   scheduler.scheduleTask(successTasksConfig);
 
   // Schedule a failing task
   TaskConfig failureTaskConfig;
-  failureTaskConfig.executeFn  = []() { throw std::runtime_error("Test error"); };
+  failureTaskConfig.taskFn  = []() { throw std::runtime_error("Test error"); };
   failureTaskConfig.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(1);
   failureTaskConfig.priority   = 1;
-  failureTaskConfig.repeatable = false;
+  failureTaskConfig.isRepeatable = false;
   scheduler.scheduleTask(failureTaskConfig);
 
   scheduler.start();
@@ -200,13 +200,13 @@ TEST_F(TaskSchedulerTest, TimeoutTask) {
   TaskScheduler scheduler(1);
 
   TaskConfig config;
-  config.executeFn = []() {
+  config.taskFn = []() {
     // Quick task that completes normally
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   };
   config.startTime   = std::chrono::system_clock::now() + std::chrono::seconds(1);
   config.priority    = 1;
-  config.repeatable  = false;
+  config.isRepeatable  = false;
   std::string taskId = scheduler.scheduleTask(config);
 
   scheduler.start();
@@ -221,23 +221,23 @@ TEST_F(TaskSchedulerTest, SchedulerStatistics) {
 
   // Schedule multiple tasks with different outcomes
   TaskConfig config;
-  config.executeFn  = []() { /* successful task */ };
+  config.taskFn  = []() { /* successful task */ };
   config.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(1);
   config.priority   = 1;
-  config.repeatable = false;
+  config.isRepeatable = false;
   scheduler.scheduleTask(config);
 
-  config.executeFn  = []() { throw std::runtime_error("Test error"); };
+  config.taskFn  = []() { throw std::runtime_error("Test error"); };
   config.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(1);
   config.priority   = 1;
-  config.repeatable = false;
+  config.isRepeatable = false;
   scheduler.scheduleTask(config);
 
   // Schedule a task that will be cancelled
-  config.executeFn            = []() { std::this_thread::sleep_for(std::chrono::seconds(5)); };
+  config.taskFn            = []() { std::this_thread::sleep_for(std::chrono::seconds(5)); };
   config.startTime            = std::chrono::system_clock::now() + std::chrono::seconds(1);
   config.priority             = 1;
-  config.repeatable           = false;
+  config.isRepeatable           = false;
   std::string cancelledTaskId = scheduler.scheduleTask(config);
 
   scheduler.start();
@@ -263,7 +263,7 @@ TEST_F(TaskSchedulerTest, TaskCompletionCallback) {
   std::vector<Task::Status> callbackStatuses;
   std::mutex                callbackMutex;
 
-  scheduler.onTaskComplete([&](const std::string &taskId, Task::Status status) {
+  scheduler.setTaskCompletionCallback([&](const std::string &taskId, Task::Status status) {
     std::lock_guard<std::mutex> lock(callbackMutex);
     callbackCount.fetch_add(1);
     callbackTaskIds.push_back(taskId);
@@ -272,17 +272,17 @@ TEST_F(TaskSchedulerTest, TaskCompletionCallback) {
 
   // Schedule two tasks, one successful and one failing
   TaskConfig successTaskConfig;
-  successTaskConfig.executeFn  = []() { /* successful task */ };
+  successTaskConfig.taskFn  = []() { /* successful task */ };
   successTaskConfig.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(1);
   successTaskConfig.priority   = 1;
-  successTaskConfig.repeatable = false;
+  successTaskConfig.isRepeatable = false;
   std::string taskId1          = scheduler.scheduleTask(successTaskConfig);
 
   TaskConfig failureTaskConfig;
-  failureTaskConfig.executeFn  = []() { throw std::runtime_error("Test error"); };
+  failureTaskConfig.taskFn  = []() { throw std::runtime_error("Test error"); };
   failureTaskConfig.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(1);
   failureTaskConfig.priority   = 1;
-  failureTaskConfig.repeatable = false;
+  failureTaskConfig.isRepeatable = false;
   std::string taskId2          = scheduler.scheduleTask(failureTaskConfig);
 
   scheduler.start();
@@ -323,10 +323,10 @@ TEST_F(TaskSchedulerTest, TaskStatusQueries) {
   TaskScheduler scheduler(1);
 
   TaskConfig config;
-  config.executeFn  = []() { std::this_thread::sleep_for(std::chrono::milliseconds(500)); };
+  config.taskFn  = []() { std::this_thread::sleep_for(std::chrono::milliseconds(500)); };
   config.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(1);
   config.priority   = 1;
-  config.repeatable = false;
+  config.isRepeatable = false;
 
   // Schedule a task
   std::string taskId = scheduler.scheduleTask(config);
@@ -359,10 +359,10 @@ TEST_F(TaskSchedulerTest, DestructionWhileRunning) {
     TaskScheduler tempScheduler(2);
 
     TaskConfig config;
-    config.executeFn  = [&]() { executions.fetch_add(1); };
+    config.taskFn  = [&]() { executions.fetch_add(1); };
     config.startTime  = std::chrono::system_clock::now() + std::chrono::milliseconds(500);
     config.priority   = 1;
-    config.repeatable = false;
+    config.isRepeatable = false;
 
     tempScheduler.scheduleTask(config);
 
@@ -384,10 +384,10 @@ TEST_F(TaskSchedulerTest, StressManyTasks) {
 
   for (int i = 0; i < NUM_TASKS; ++i) {
     TaskConfig config;
-    config.executeFn  = [&]() { executions.fetch_add(1); };
+    config.taskFn  = [&]() { executions.fetch_add(1); };
     config.startTime  = std::chrono::system_clock::now() + std::chrono::milliseconds(100 + i);
     config.priority   = i % 10; // Varying priorities
-    config.repeatable = false;  // One-time tasks
+    config.isRepeatable = false;  // One-time tasks
     scheduler.scheduleTask(config);
   }
 

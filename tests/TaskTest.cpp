@@ -18,16 +18,16 @@ TEST_F(TaskTest, DefaultConstruction) {
   auto                  startTime = std::chrono::system_clock::now() + std::chrono::seconds(1);
   bool                  executed  = false;
   int                   priority  = 5;
-  std::function<void()> executeFn = [&executed]() { executed = true; };
+  std::function<void()> taskFn = [&executed]() { executed = true; };
 
-  Task task(executeFn, startTime, priority);
+  Task task(taskFn, startTime, priority);
 
   EXPECT_EQ(task.priority, priority);
   EXPECT_EQ(task.startTime, startTime);
   EXPECT_EQ(task.getStatus(), Task::Status::PENDING);
-  EXPECT_FALSE(task.repeatable);
-  EXPECT_EQ(task.repeatInterval, std::chrono::seconds(10));   // Default
-  EXPECT_EQ(task.executionTimeout, std::chrono::seconds(60)); // Default
+  EXPECT_FALSE(task.isRepeatable);
+  EXPECT_EQ(task.repeatEvery, std::chrono::seconds(10));   // Default
+  EXPECT_EQ(task.timeout, std::chrono::seconds(60)); // Default
   EXPECT_FALSE(executed);
   EXPECT_FALSE(task.getId().empty());
 }
@@ -35,30 +35,30 @@ TEST_F(TaskTest, DefaultConstruction) {
 TEST_F(TaskTest, FullConstruction) {
   auto                  startTime        = std::chrono::system_clock::now() + std::chrono::seconds(2);
   bool                  executed         = false;
-  std::function<void()> executeFn        = [&executed]() { executed = true; };
+  std::function<void()> taskFn        = [&executed]() { executed = true; };
   int                   priority         = 3;
-  bool                  repeatable       = true;
-  std::chrono::seconds  repeatInterval   = std::chrono::seconds(5);
-  std::chrono::seconds  executionTimeout = std::chrono::seconds(30);
+  bool                  isRepeatable     = true;
+  std::chrono::seconds  repeatEvery   = std::chrono::seconds(5);
+  std::chrono::seconds  timeout = std::chrono::seconds(30);
 
-  Task task(executeFn, startTime, priority, repeatable, repeatInterval, executionTimeout);
+  Task task(taskFn, startTime, priority, isRepeatable, repeatEvery, timeout);
 
   EXPECT_EQ(task.priority, priority);
   EXPECT_EQ(task.startTime, startTime);
   EXPECT_EQ(task.getStatus(), Task::Status::PENDING);
-  EXPECT_TRUE(task.repeatable);
-  EXPECT_EQ(task.repeatInterval, repeatInterval);
-  EXPECT_EQ(task.executionTimeout, executionTimeout);
+  EXPECT_TRUE(task.isRepeatable);
+  EXPECT_EQ(task.repeatEvery, repeatEvery);
+  EXPECT_EQ(task.timeout, timeout);
   EXPECT_FALSE(executed);
 }
 
 TEST_F(TaskTest, ExecuteTask) {
   std::atomic<int>      counter(0);
   auto                  startTime = std::chrono::system_clock::now();
-  std::function<void()> executeFn = [&counter]() { counter.fetch_add(1); };
+  std::function<void()> taskFn = [&counter]() { counter.fetch_add(1); };
   int                   priority  = 1;
 
-  Task task(executeFn, startTime, priority);
+  Task task(taskFn, startTime, priority);
 
   EXPECT_EQ(counter.load(), 0);
 
@@ -69,20 +69,20 @@ TEST_F(TaskTest, ExecuteTask) {
 
 TEST_F(TaskTest, ExecuteThrows) {
   auto                  startTime = std::chrono::system_clock::now();
-  std::function<void()> executeFn = []() { throw std::runtime_error("Test exception"); };
+  std::function<void()> taskFn = []() { throw std::runtime_error("Test exception"); };
   int                   priority  = 1;
 
-  Task task(executeFn, startTime, priority);
+  Task task(taskFn, startTime, priority);
 
   EXPECT_THROW(task.execute(), std::runtime_error);
 }
 
 TEST_F(TaskTest, StatusTransitions) {
   auto                  startTime = std::chrono::system_clock::now();
-  std::function<void()> executeFn = []() {};
+  std::function<void()> taskFn = []() {};
   int                   priority  = 1;
 
-  Task task(executeFn, startTime, priority);
+  Task task(taskFn, startTime, priority);
 
   EXPECT_EQ(task.getStatus(), Task::Status::PENDING);
 
@@ -103,12 +103,12 @@ TEST_F(TaskTest, StatusTransitions) {
 }
 
 TEST_F(TaskTest, RescheduleWithTime) {
-  std::function<void()> executeFn = []() {};
+  std::function<void()> taskFn = []() {};
   int                   priority  = 1;
   auto                  startTime = std::chrono::system_clock::now();
   auto                  newTime   = startTime + std::chrono::seconds(5);
 
-  Task task(executeFn, startTime, priority);
+  Task task(taskFn, startTime, priority);
 
   EXPECT_EQ(task.startTime, startTime);
 
@@ -118,13 +118,13 @@ TEST_F(TaskTest, RescheduleWithTime) {
 }
 
 TEST_F(TaskTest, RescheduleRepeatable) {
-  std::function<void()> executeFn      = []() {};
+  std::function<void()> taskFn      = []() {};
   int                   priority       = 1;
   auto                  startTime      = std::chrono::system_clock::now();
-  bool                  repeatable     = true;
-  std::chrono::seconds  repeatInterval = std::chrono::seconds(3);
+  bool                  isRepeatable   = true;
+  std::chrono::seconds  repeatEvery = std::chrono::seconds(3);
 
-  Task task(executeFn, startTime, priority, repeatable, repeatInterval);
+  Task task(taskFn, startTime, priority, isRepeatable, repeatEvery);
 
   auto originalTime = task.startTime;
 
@@ -135,21 +135,21 @@ TEST_F(TaskTest, RescheduleRepeatable) {
 
   EXPECT_GT(task.startTime, originalTime);
   // The new time should be approximately now + 3 seconds
-  auto expectedTime = std::chrono::system_clock::now() + repeatInterval;
+  auto expectedTime = std::chrono::system_clock::now() + repeatEvery;
   auto timeDiff     = std::chrono::duration_cast<std::chrono::milliseconds>(task.startTime - expectedTime).count();
   EXPECT_LT(std::abs(timeDiff), 100); // Within 100ms tolerance
 }
 
 TEST_F(TaskTest, CopyConstructor) {
   std::atomic<int>      counter(0);
-  std::function<void()> executeFn        = [&counter]() { counter.fetch_add(1); };
+  std::function<void()> taskFn        = [&counter]() { counter.fetch_add(1); };
   int                   priority         = 5;
   auto                  startTime        = std::chrono::system_clock::now();
-  bool                  repeatable       = true;
-  std::chrono::seconds  repeatInterval   = std::chrono::seconds(7);
-  std::chrono::seconds  executionTimeout = std::chrono::seconds(25);
+  bool                  isRepeatable     = true;
+  std::chrono::seconds  repeatEvery   = std::chrono::seconds(7);
+  std::chrono::seconds  timeout = std::chrono::seconds(25);
 
-  Task original(executeFn, startTime, priority, repeatable, repeatInterval, executionTimeout);
+  Task original(taskFn, startTime, priority, isRepeatable, repeatEvery, timeout);
 
   original.setStatus(Task::Status::RUNNING);
 
@@ -158,9 +158,9 @@ TEST_F(TaskTest, CopyConstructor) {
   EXPECT_EQ(copy.priority, original.priority);
   EXPECT_EQ(copy.startTime, original.startTime);
   EXPECT_EQ(copy.getStatus(), original.getStatus());
-  EXPECT_EQ(copy.repeatable, original.repeatable);
-  EXPECT_EQ(copy.repeatInterval, original.repeatInterval);
-  EXPECT_EQ(copy.executionTimeout, original.executionTimeout);
+  EXPECT_EQ(copy.isRepeatable, original.isRepeatable);
+  EXPECT_EQ(copy.repeatEvery, original.repeatEvery);
+  EXPECT_EQ(copy.timeout, original.timeout);
   EXPECT_EQ(copy.getId(), original.getId());
 
   // Test that both can execute
@@ -171,14 +171,14 @@ TEST_F(TaskTest, CopyConstructor) {
 
 TEST_F(TaskTest, MoveConstructor) {
   std::atomic<int>      counter(0);
-  std::function<void()> executeFn        = [&counter]() { counter.fetch_add(1); };
+  std::function<void()> taskFn        = [&counter]() { counter.fetch_add(1); };
   auto                  startTime        = std::chrono::system_clock::now();
   int                   priority         = 3;
-  bool                  repeatable       = true;
-  std::chrono::seconds  repeatInterval   = std::chrono::seconds(4);
-  std::chrono::seconds  executionTimeout = std::chrono::seconds(20);
+  bool                  isRepeatable     = true;
+  std::chrono::seconds  repeatEvery   = std::chrono::seconds(4);
+  std::chrono::seconds  timeout = std::chrono::seconds(20);
 
-  Task original(executeFn, startTime, priority, repeatable, repeatInterval, executionTimeout);
+  Task original(taskFn, startTime, priority, isRepeatable, repeatEvery, timeout);
 
   original.setStatus(Task::Status::COMPLETED);
 
@@ -189,9 +189,9 @@ TEST_F(TaskTest, MoveConstructor) {
   EXPECT_EQ(moved.priority, priority);
   EXPECT_EQ(moved.startTime, startTime);
   EXPECT_EQ(moved.getStatus(), Task::Status::COMPLETED);
-  EXPECT_EQ(moved.repeatable, repeatable);
-  EXPECT_EQ(moved.repeatInterval, repeatInterval);
-  EXPECT_EQ(moved.executionTimeout, executionTimeout);
+  EXPECT_EQ(moved.isRepeatable, isRepeatable);
+  EXPECT_EQ(moved.repeatEvery, repeatEvery);
+  EXPECT_EQ(moved.timeout, timeout);
   EXPECT_EQ(moved.getId(), originalId);
 
   moved.execute();

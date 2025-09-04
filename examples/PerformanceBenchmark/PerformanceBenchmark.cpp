@@ -30,7 +30,7 @@ public:
 
     TaskScheduler scheduler(threads);
     std::cout << "✅ TaskScheduler created successfully" << std::endl;
-    scheduler.enableConsoleLogging(false);
+    scheduler.setConsoleLoggingEnabled(false);
 
     std::atomic<int> completed{0};
     auto             startAt  = std::chrono::steady_clock::now();
@@ -38,13 +38,13 @@ public:
 
     for (int i = 0; i < numTasks; ++i) {
       TaskConfig taskConfig;
-      taskConfig.executeFn = [&]() {
+      taskConfig.taskFn = [&]() {
         taskBody();
         completed++;
       };
       taskConfig.startTime  = std::chrono::system_clock::now(); // Immediate execution
       taskConfig.priority   = 1;                                // Same priority for all
-      taskConfig.repeatable = false;                            // non-Repeatable
+      taskConfig.isRepeatable = false;                            // non-Repeatable
 
       scheduler.scheduleTask(taskConfig);
     }
@@ -69,7 +69,7 @@ public:
     std::cout << "Tasks completed: " << finalStats.tasksCompleted << std::endl;
     std::cout << "Tasks failed: " << finalStats.tasksFailed << std::endl;
     std::cout << "Tasks cancelled: " << finalStats.tasksCancelled << std::endl;
-    std::cout << "Tasks timed out: " << finalStats.tasksTimedOut << std::endl;
+    std::cout << "Tasks timed out: " << finalStats.tasksTimeout << std::endl;
 
     std::cout << "\nTotalnumTasks = " << numTasks << " | ✅ Completed: " << completed.load()
               << " | 🕒 Wall Time: " << wallTime << " ms" << " | 🧠 CPU Time: " << cpuUsed << " ms"

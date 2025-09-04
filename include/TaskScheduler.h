@@ -20,20 +20,20 @@ namespace TaskSchedX {
  * the chance of parameter ordering errors.
  */
 struct TaskConfig {
-  std::function<void()>                 executeFn;                  ///< The function to execute
+  std::function<void()>                 taskFn;                  ///< The function to execute
   std::chrono::system_clock::time_point startTime;                  ///< Scheduled start execution time
   int                                   priority;                   ///< Task priority (lower = higher priority)
-  bool                                  repeatable = false;         ///< Whether task should repeat
-  std::chrono::seconds repeatInterval   = std::chrono::seconds(10); ///< Interval between repeated task executions
-  std::chrono::seconds executionTimeout = std::chrono::seconds(60); ///< Maximum execution time before timeout
+  bool                                  isRepeatable = false;       ///< Whether task should repeat
+  std::chrono::seconds repeatEvery   = std::chrono::seconds(10); ///< Interval between repeated task executions
+  std::chrono::seconds timeout = std::chrono::seconds(60); ///< Maximum execution time before timeout
 
-  TaskConfig() : executeFn(nullptr), startTime(std::chrono::system_clock::now()) {}
+  TaskConfig() : taskFn(nullptr), startTime(std::chrono::system_clock::now()) {}
 
   TaskConfig(std::function<void()> func, std::chrono::system_clock::time_point st, int prio = 0,
              bool isRepeatable = false, std::chrono::seconds interval = std::chrono::seconds(10),
              std::chrono::seconds maxTime = std::chrono::seconds(60))
-      : executeFn(std::move(func)), startTime(st), priority(prio), repeatable(isRepeatable), repeatInterval(interval),
-        executionTimeout(maxTime) {}
+      : taskFn(std::move(func)), startTime(st), priority(prio), isRepeatable(isRepeatable), repeatEvery(interval),
+        timeout(maxTime) {}
 
   TaskConfig(const TaskConfig &other)                = default; ///< Copy constructor
   TaskConfig(TaskConfig &&other) noexcept            = default; ///< Move constructor
@@ -47,10 +47,10 @@ struct TaskConfig {
    */
   std::string toString() const {
     std::ostringstream oss;
-    oss << "TaskConfig(executeFn=" << (executeFn ? "set" : "null")
+    oss << "TaskConfig(taskFn=" << (taskFn ? "set" : "null")
         << ", startTime=" << std::chrono::system_clock::to_time_t(startTime) << ", priority=" << priority
-        << ", repeatable=" << (repeatable ? "true" : "false") << ", repeatInterval=" << repeatInterval.count()
-        << "s, executionTimeout=" << executionTimeout.count() << "s)";
+        << ", isRepeatable=" << (isRepeatable ? "true" : "false") << ", repeatEvery=" << repeatEvery.count()
+        << "s, timeout=" << timeout.count() << "s)";
     return oss.str();
   };
 };
@@ -70,10 +70,9 @@ public:
 
   ~TaskScheduler();
 
-  std::string scheduleTask(std::function<void()> executeFn, std::chrono::system_clock::time_point startTime,
-                           int priority, bool repeatable = false,
-                           std::chrono::seconds repeatInterval   = std::chrono::seconds(10),
-                           std::chrono::seconds executionTimeout = std::chrono::seconds(60));
+  std::string scheduleTask(std::function<void()> taskFn, std::chrono::system_clock::time_point startTime, int priority,
+                           bool isRepeatable = false, std::chrono::seconds repeatEvery = std::chrono::seconds(10),
+                           std::chrono::seconds timeout = std::chrono::seconds(60));
 
   std::string scheduleTask(const TaskConfig &config);
 
@@ -85,11 +84,11 @@ public:
 
   void stop();
 
-  void onTaskComplete(std::function<void(const std::string &, Task::Status)> callback);
+  void setTaskCompletionCallback(std::function<void(const std::string &, Task::Status)> callback);
 
   void setLogLevel(Logger::Level level);
 
-  void enableConsoleLogging(bool enable);
+  void setConsoleLoggingEnabled(bool enable);
 
   /**
    * @struct Statistics
@@ -103,7 +102,7 @@ public:
     size_t tasksCompleted      = 0; ///< Number of tasks completed successfully
     size_t tasksFailed         = 0; ///< Number of tasks that failed with exceptions
     size_t tasksCancelled      = 0; ///< Number of tasks cancelled before or during execution
-    size_t tasksTimedOut       = 0; ///< Number of tasks that exceeded their timeout limit
+    size_t tasksTimeout       = 0; ///< Number of tasks that exceeded their timeout limit
   };
 
   Statistics getStatistics() const;
@@ -114,7 +113,7 @@ private:
   /** @brief Condition variable for scheduler synchronization */
   std::condition_variable workAvailable_cv;
   /** @brief Atomic flag indicating scheduler running state */
-  std::atomic<bool> is_running{false};
+  std::atomic<bool> isRunning{false};
 
   /** @brief Internal thread pool for parallel task execution */
   ThreadPool threadPool;
@@ -125,7 +124,7 @@ private:
   TaskQueue taskQueue;
 
   /** @brief Task completion callback */
-  std::function<void(const std::string &, Task::Status)> taskCompleteCallback;
+  std::function<void(const std::string &, Task::Status)> completionCallback;
 
   /** @brief Registry of active tasks by ID */
   std::unordered_map<std::string, std::shared_ptr<Task>> activeTasks;
@@ -142,11 +141,11 @@ private:
 
   void runSchedulerLoop();
 
-  void handleTaskPostExecution(std::shared_ptr<Task> activeTask, bool timedOut);
+  void finalizeCompletedTask(std::shared_ptr<Task> activeTask, bool timedOut);
 
   void executeAndFinalizeTask(std::shared_ptr<Task> activeTask);
 
-  bool executeTaskWithTimeout(Task &task);
+  bool runTaskWithTimeout(Task &task);
 
   void updateStatistics(Task::Status status);
 

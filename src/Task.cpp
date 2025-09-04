@@ -31,23 +31,23 @@ std::atomic<size_t> Task::nextId{1};
  * @param func The function to execute when the task runs
  * @param startTime The scheduled start execution time point
  * @param priority Task priority (lower values = higher priority)
- * @param repeatable Whether the task should repeat after completion
- * @param repeatInterval Time interval between repeated task executions
+ * @param isRepeatable Whether the task should repeat after completion
+ * @param repeatEvery Time interval between repeated task executions
  * @param maxExecTime Maximum allowed execution time before timeout
  *
  * @note Priority comparison: tasks with lower priority values are executed first
  * @note Repeated tasks are automatically rescheduled after successful completion
  */
-Task::Task(std::function<void()> func, std::chrono::system_clock::time_point startTime, int priority, bool repeatable,
-           std::chrono::seconds repeatInterval, std::chrono::seconds maxExecTime)
-    : executeFn(func),                // Store the function to execute
-      startTime(startTime),           // Store the scheduled execution time
-      priority(priority),             // Store the task priority (lower = higher priority)
-      status(Status::PENDING),        // Initialize status as PENDING
-      repeatable(repeatable),         // Store whether task should repeat
-      repeatInterval(repeatInterval), // Store time between repeated task executions
-      executionTimeout(maxExecTime),  // Store maximum allowed execution time
-      taskId(generateTaskId())        // Generate and store unique task ID
+Task::Task(std::function<void()> func, std::chrono::system_clock::time_point startTime, int priority, bool isRepeatable,
+           std::chrono::seconds repeatEvery, std::chrono::seconds maxExecTime)
+    : taskFn(func),                  // Store the function to execute
+      startTime(startTime),          // Store the scheduled execution time
+      priority(priority),            // Store the task priority (lower = higher priority)
+      status(Status::PENDING),       // Initialize status as PENDING
+      isRepeatable(isRepeatable),    // Store whether task should repeat
+      repeatEvery(repeatEvery),      // Store time between repeated task executions
+      timeout(maxExecTime), // Store maximum allowed execution time
+      taskId(generateTaskId())       // Generate and store unique task ID
 {}
 
 /**
@@ -63,13 +63,13 @@ Task::Task(std::function<void()> func, std::chrono::system_clock::time_point sta
  * at the time of copying, while maintaining thread safety.
  */
 Task::Task(const Task &other)
-    : executeFn(other.executeFn),           // Copy the function object
-      startTime(other.startTime),           // Copy the execution time
-      priority(other.priority),             // Copy the priority value
-      status(other.status.load()),          // Load atomic status value (cannot move atomics) and store in new atomic
-      repeatable(other.repeatable),         // Copy the repeatable flag
-      repeatInterval(other.repeatInterval), // Copy the repeated task executions interval
-      executionTimeout(other.executionTimeout), // Copy the timeout value
+    : taskFn(other.taskFn),             // Copy the function object
+      startTime(other.startTime),       // Copy the execution time
+      priority(other.priority),         // Copy the priority value
+      status(other.status.load()),      // Load atomic status value (cannot move atomics) and store in new atomic
+      isRepeatable(other.isRepeatable), // Copy the repeatable flag
+      repeatEvery(other.repeatEvery),   // Copy the repeated task executions interval
+      timeout(other.timeout), // Copy the timeout value
       taskId(other.taskId)                      // Copy the task ID
 {}
 
@@ -83,13 +83,13 @@ Task::Task(const Task &other)
  *
  */
 Task::Task(Task &&other) noexcept
-    : executeFn(std::move(other.executeFn)), // Move the function object
-      startTime(other.startTime),            // Copy the execution time (trivial type)
-      priority(other.priority),              // Copy the priority (trivial type)
-      status(other.status.load()),           // Load atomic status value (cannot move atomics) and store in new atomic
-      repeatable(other.repeatable),          // Copy the repeatable flag
-      repeatInterval(other.repeatInterval),  // Copy the interval
-      executionTimeout(other.executionTimeout), // Copy the timeout
+    : taskFn(std::move(other.taskFn)),  // Move the function object
+      startTime(other.startTime),       // Copy the execution time (trivial type)
+      priority(other.priority),         // Copy the priority (trivial type)
+      status(other.status.load()),      // Load atomic status value (cannot move atomics) and store in new atomic
+      isRepeatable(other.isRepeatable), // Copy the repeatable flag
+      repeatEvery(other.repeatEvery),   // Copy the interval
+      timeout(other.timeout), // Copy the timeout
       taskId(std::move(other.taskId))           // Move the task ID string
 {}
 
@@ -104,13 +104,13 @@ Task::Task(Task &&other) noexcept
  */
 Task &Task::operator=(const Task &other) {
   if (this != &other) {                        // Protect against self-assignment
-    executeFn = other.executeFn;               // Assign the function object
+    taskFn = other.taskFn;               // Assign the function object
     startTime = other.startTime;               // Assign the execution time
     priority  = other.priority;                // Assign the priority
     status.store(other.status.load());         // Store the loaded atomic value
-    repeatable       = other.repeatable;       // Assign the repeatable flag
-    repeatInterval   = other.repeatInterval;   // Assign the interval
-    executionTimeout = other.executionTimeout; // Assign the timeout
+    isRepeatable     = other.isRepeatable;     // Assign the repeatable flag
+    repeatEvery   = other.repeatEvery;   // Assign the interval
+    timeout = other.timeout; // Assign the timeout
     taskId           = other.taskId;           // Assign the task ID
   }
   return *this; // Return reference to this object
@@ -127,13 +127,13 @@ Task &Task::operator=(const Task &other) {
  */
 Task &Task::operator=(Task &&other) noexcept {
   if (this != &other) {                         // Protect against self-assignment
-    executeFn = std::move(other.executeFn);     // Move the function object
+    taskFn = std::move(other.taskFn);     // Move the function object
     startTime = other.startTime;                // Copy the execution time
     priority  = other.priority;                 // Copy the priority
     status.store(other.status.load());          // Store the loaded atomic value
-    repeatable       = other.repeatable;        // Copy the repeatable flag
-    repeatInterval   = other.repeatInterval;    // Copy the interval
-    executionTimeout = other.executionTimeout;  // Copy the timeout
+    isRepeatable     = other.isRepeatable;      // Copy the repeatable flag
+    repeatEvery   = other.repeatEvery;    // Copy the interval
+    timeout = other.timeout;  // Copy the timeout
     taskId           = std::move(other.taskId); // Move the task ID string
   }
   return *this; // Return reference to this object
@@ -152,7 +152,7 @@ Task &Task::operator=(Task &&other) noexcept {
  * @note The caller is responsible for handling exceptions and updating task status
  */
 void Task::execute() {
-  executeFn();
+  taskFn();
 }
 
 /**
@@ -180,7 +180,7 @@ void Task::reschedule(std::chrono::system_clock::time_point newTime) {
  * @note Only meaningful for repeatable tasks
  */
 void Task::reschedule() {
-  startTime = std::chrono::system_clock::now() + repeatInterval;
+  startTime = std::chrono::system_clock::now() + repeatEvery;
 }
 
 /**

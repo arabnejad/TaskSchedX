@@ -17,19 +17,19 @@ int main() {
 
   // Set up logging
   scheduler.setLogLevel(Logger::Level::INFO);
-  scheduler.enableConsoleLogging(true);
+  scheduler.setConsoleLoggingEnabled(true);
 
   std::cout << "\n🗓️ Scheduling an error-prone task that will throw an exception..." << std::endl;
 
   TaskConfig taskConfig;
-  taskConfig.executeFn = []() {
+  taskConfig.taskFn = []() {
     std::cout << "Error Handling: Task started execution" << std::endl;
     std::cout << "About to simulate an error..." << std::endl;
     throw std::runtime_error("Simulated error in task - this is intentional for demonstration");
   };
   taskConfig.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(2); // schedule to run in 2 seconds
   taskConfig.priority   = 1;                                                          // Priority 1
-  taskConfig.repeatable = false;                                                      // non-Repeatable
+  taskConfig.isRepeatable = false;                                                      // non-Repeatable
 
   std::string taskId = scheduler.scheduleTask(taskConfig);
   std::cout << "🆗 Scheduled error-prone task with ID: " << taskId << std::endl;
@@ -56,7 +56,7 @@ int main() {
   std::cout << "Tasks completed: " << finalStats.tasksCompleted << std::endl;
   std::cout << "Tasks failed: " << finalStats.tasksFailed << std::endl;
   std::cout << "Tasks cancelled: " << finalStats.tasksCancelled << std::endl;
-  std::cout << "Tasks timed out: " << finalStats.tasksTimedOut << std::endl;
+  std::cout << "Tasks timed out: " << finalStats.tasksTimeout << std::endl;
 
   if (finalStats.totalTasksScheduled > 0) {
     std::cout << std::fixed << std::setprecision(1);
