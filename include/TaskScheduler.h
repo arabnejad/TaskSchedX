@@ -112,9 +112,9 @@ private:
   /** @brief Mutex for protecting queue operations */
   std::mutex queueMutex;
   /** @brief Condition variable for scheduler synchronization */
-  std::condition_variable condition;
+  std::condition_variable workAvailable_cv;
   /** @brief Atomic flag indicating scheduler running state */
-  std::atomic<bool> running{false};
+  std::atomic<bool> is_running{false};
 
   /** @brief Internal thread pool for parallel task execution */
   ThreadPool threadPool;

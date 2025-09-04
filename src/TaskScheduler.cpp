@@ -23,14 +23,11 @@ TaskScheduler::TaskScheduler(size_t numThreads) : threadPool(numThreads) {
 /**
  * @brief Destructor that ensures proper cleanup of the scheduler
  *
- * Automatically stops the scheduler if it's still running to ensure
- * proper cleanup of all resources including threads and active tasks.
+ * Automatically stops the scheduler if still running, calls stop() to join
+ * threads and release resources.
  */
 TaskScheduler::~TaskScheduler() {
-  // Check if the scheduler is still running using atomic load
-  if (running.load()) {
-    // Stop the scheduler to clean up resources properly
-    // This ensures threads are joined and resources are released
+  if (is_running.load(std::memory_order_acquire)) {
     stop();
   }
 }
@@ -73,43 +70,34 @@ std::string TaskScheduler::scheduleTask(const TaskConfig &config) {
 std::string TaskScheduler::scheduleTask(std::function<void()>                 executeFn,
                                         std::chrono::system_clock::time_point startTime, int priority, bool repeatable,
                                         std::chrono::seconds repeatInterval, std::chrono::seconds executionTimeout) {
-  // Create a new Task object with all specified parameters
-  // The Task constructor will generate a unique ID and set initial status
-  auto task = std::make_shared<Task>(executeFn, startTime, priority, repeatable, repeatInterval, executionTimeout);
+
+  auto task   = std::make_shared<Task>(executeFn, startTime, priority, repeatable, repeatInterval, executionTimeout);
+  auto taskId = task->getId();
 
   // Add the task to the active tasks registry for tracking and management
   {
-    // Acquire exclusive lock for thread-safe access to active tasks map
-    std::lock_guard<std::mutex> lock(activeTasksMutex);
-
-    // Store the task using its unique ID as the key
-    // This allows for efficient lookup, cancellation, and status queries
-    activeTasks[task->getId()] = task;
+    std::lock_guard<std::mutex> activeTasks_lock(activeTasksMutex);
+    activeTasks[taskId] = task;
   }
 
   // Add the task to the priority queue for scheduling
-  // The queue will order tasks based on priority and execution time
-  taskQueue.addTask(*task);
+  {
+    std::lock_guard<std::mutex> queue_lock(queueMutex);
+    taskQueue.push(task);
+  }
 
   // Update scheduling statistics in a thread-safe manner
   {
-    // Acquire exclusive lock for statistics modification
-    std::lock_guard<std::mutex> lock(statsMutex);
-
-    // Increment the total number of tasks scheduled
+    std::lock_guard<std::mutex> stats_lock(statsMutex);
     stats.totalTasksScheduled++;
   }
 
-  // Log the successful task scheduling with relevant details
   LOGGER.info("Task scheduled: " + task->getId() + " (priority: " + std::to_string(priority) +
               ", repeatable: " + (repeatable ? "yes" : "no") + ")");
 
-  // Notify the scheduler thread that a new task is available
-  // This wakes up the scheduler if it's waiting for tasks
-  condition.notify_one();
+  workAvailable_cv.notify_one();
 
-  // Return the unique task ID for client tracking and management
-  return task->getId();
+  return taskId;
 }
 
 /**
@@ -122,46 +110,43 @@ std::string TaskScheduler::scheduleTask(std::function<void()>                 ex
  * @param taskId The unique identifier of the task to cancel
  * @return true if the task was found and cancelled, false otherwise
  *
- * @note Tasks that are currently executing cannot be forcibly stopped
+ * @note Tasks that are currently running cannot be forcibly stopped
  * @note Cancelled tasks will not be rescheduled even if they were repeated tasks
  */
 bool TaskScheduler::cancelTask(const std::string &taskId) {
-  std::shared_ptr<Task> taskToCancel;
-  {
-    // Acquire exclusive lock for thread-safe access to active tasks
-    std::lock_guard<std::mutex> lock(activeTasksMutex);
+  bool cancelled = false;
 
-    // Search for the task in the active tasks registry
-    auto it = activeTasks.find(taskId);
+  // First, try to find and cancel the task in the active tasks registry
+  {
+    std::lock_guard<std::mutex> activeTasks_lock(activeTasksMutex);
+    auto                        it = activeTasks.find(taskId);
     if (it != activeTasks.end()) {
-      // Mark as cancelled
       it->second->setStatus(Task::Status::CANCELLED);
-      taskToCancel = it->second;
       activeTasks.erase(it);
-      // Update statistics to reflect the cancellation
-      updateStatistics(Task::Status::CANCELLED);
+      cancelled = true;
+      LOGGER.info("Task " + taskId + " cancelled from active tasks list");
     }
   }
 
-  if (taskToCancel) {
-    // Notify completion callback of the cancellation
-    notifyTaskCompletion(taskId, Task::Status::CANCELLED);
-    LOGGER.info("Task " + taskId + " cancelled from active tasks list");
-    return true;
+  // not in active tasks list
+  // try to find and canel if from the pending queue (not-yet-active tasks)
+  if (!cancelled) {
+    std::lock_guard<std::mutex> queue_lock(queueMutex);
+    cancelled = taskQueue.cancelTask(taskId);
+    if (cancelled) {
+      LOGGER.info("Task " + taskId + " cancelled from task queue");
+    }
   }
 
-  // not in active tasks list
-  // Cancel pending (not-yet-active) tasks from the queue
-  if (taskQueue.cancelTask(taskId)) {
+  // Update statistics and notify if the task was successfully cancelled
+  if (cancelled) {
     updateStatistics(Task::Status::CANCELLED);
     notifyTaskCompletion(taskId, Task::Status::CANCELLED);
-    LOGGER.info("Task " + taskId + " cancelled from task queue");
-    return true;
+  } else {
+    LOGGER.warn("Attempted to cancel non-existent task: " + taskId);
   }
 
-  // Not found in active or queued
-  LOGGER.warn("Attempted to cancel non-existent task: " + taskId);
-  return false;
+  return cancelled;
 }
 
 /**
@@ -185,20 +170,18 @@ bool TaskScheduler::cancelTask(const std::string &taskId) {
  * @note The status may change immediately after this call in multithreaded environments
  */
 Task::Status TaskScheduler::getTaskStatus(const std::string &taskId) {
-  // Acquire shared lock for thread-safe access to active tasks
-  std::lock_guard<std::mutex> lock(activeTasksMutex);
+
+  std::lock_guard<std::mutex> activeTasks_lock(activeTasksMutex);
 
   // Search for the task in the active tasks registry
   auto isActive = activeTasks.find(taskId);
   if (isActive != activeTasks.end()) {
-    // Task found - return its current status using thread-safe atomic load
     return isActive->second->getStatus();
   }
 
   // Check if the task has been completed and tracked
   auto doneTask = completedTasks.find(taskId);
   if (doneTask != completedTasks.end()) {
-    // completedTasks is std::unordered_map<std::string, Task::Status>
     return doneTask->second;
   }
 
@@ -224,8 +207,9 @@ Task::Status TaskScheduler::getTaskStatus(const std::string &taskId) {
  *
  */
 void TaskScheduler::start() {
-  if (running.exchange(true))
+  if (is_running.exchange(true, std::memory_order_acq_rel)) {
     return; // Prevent double-start
+  }
   schedulerThread = std::thread([this]() { runSchedulerLoop(); });
 }
 
@@ -240,79 +224,55 @@ void TaskScheduler::start() {
 void TaskScheduler::runSchedulerLoop() {
   LOGGER.info("TaskScheduler started");
 
-  // Create a std::unique_lock named 'lock' for 'queueMutex' without locking it immediately.
-  // The use of std::defer_lock defers locking, so the mutex starts unlocked and remains
-  // unlocked until lock.lock() is called manually.
-  // - 'taskQueue' will be updated for repeated task in handleTaskPostExecution using the same
-  // mutex 'queueMutex'
-  //
-  // **** look at the first line in while(running){...} block ***
-  // This allows us to control when the mutex is locked and unlocked,
-  // which is important for efficient waiting and notification handling.
-  // This is necessary to avoid deadlocks and ensure proper synchronization
-  // between the scheduler thread and other threads that may modify the task queue.
-  std::unique_lock<std::mutex> lock(queueMutex, std::defer_lock);
-
   // Main scheduling loop - continues until stop() is called
-  while (running) {
-    // Acquire the queue lock for safe access to the task queue
-    lock.lock(); // Lock the mutex manually
+  while (is_running.load(std::memory_order_acquire)) {
 
-    // Wait while the queue is empty and we're still running
-    // This prevents busy-waiting and allows efficient thread blocking
-    while (taskQueue.isEmpty() && running) {
-      condition.wait(lock); // Releases lock and waits for notification
-    }
+    std::unique_lock<std::mutex> queue_lock(queueMutex);
+
+    // wait until (work available or stop requested)
+    workAvailable_cv.wait(queue_lock,
+                          [this] { return !is_running.load(std::memory_order_acquire) || !taskQueue.isEmpty(); });
 
     // Check if we should stop (stop() was called while waiting)
-    if (!running) {
-      lock.unlock(); // Release the lock before exiting
-      break;         // Exit the main scheduling loop
+    if (!is_running.load(std::memory_order_acquire)) {
+      break; // Exit the main scheduling loop
     }
 
-    // Get the next task from the priority queue
-    // This is the highest priority task that's ready to run
-    Task task = taskQueue.getTask();
+    // Get the next highest priority task from the priority queue
+    auto task = taskQueue.pop();
 
-    // Check if the task's execution time has arrived
+    // If it's not yet time to run the task, put it back and wait until its start time or stop.
     auto now = std::chrono::system_clock::now();
+    if (task->startTime > now) {
 
-    if (task.startTime > now) {
+      taskQueue.push(task);
+
       // Task is not ready yet - wait until:
       // - the specified time (task.startTime) is reached
       // OR
-      // - the lambda check returns true, indicating an early
-      //   wake-up condition (e.g., stop() was called)
-      condition.wait_until(lock, task.startTime, [this] { return !running; });
+      // - stop() request was called
+      workAvailable_cv.wait_until(queue_lock, task->startTime,
+                                  [this] { return !is_running.load(std::memory_order_acquire); });
 
-      // Check if we were woken up by a stop request
-      if (!running) {
-        lock.unlock();
-        break;
+      if (!is_running.load(std::memory_order_acquire)) {
+        break; // Exit the main scheduling loop
       }
 
-      // Re-check the time: maybe it's now ready to execute
-      auto current = std::chrono::system_clock::now();
-      if (task.startTime > current) {
-        // Still too early – requeue
-        taskQueue.addTask(task);
-        lock.unlock();
-        continue;
-      }
+      // continue getting tasks to re-evaluate queue head
+      continue;
     }
 
     // Task is ready to execute - release the queue lock
-    lock.unlock();
+    queue_lock.unlock();
 
     // Get the actual task object from the active tasks registry
-    // This ensures we're working with the current task state
     std::shared_ptr<Task> activeTask;
     {
-      // Lock the mutex to safely access the shared activeTasks map
-      std::lock_guard<std::mutex> activeLock(activeTasksMutex);
+      std::lock_guard<std::mutex> activeTasks_lock(activeTasksMutex);
       // Try to find the task by its ID in the activeTasks map
-      auto it = activeTasks.find(task.getId());
+      auto it = activeTasks.find(task->getId());
       // If the task exists in the activeTasks map, save it to activeTask
+      // if not exists, means task may have been cancelled
       if (it != activeTasks.end()) {
         activeTask = it->second;
       }
@@ -325,13 +285,11 @@ void TaskScheduler::runSchedulerLoop() {
 
     // Mark the task as currently running
     activeTask->setStatus(Task::Status::RUNNING);
-
-    // Log the task execution start
-    LOGGER.debug("Executing task: " + activeTask->getId() + " (priority: " + std::to_string(activeTask->priority) +
-                 ")");
-
     // Dispatch task to thread pool
     threadPool.enqueueTask([this, activeTask]() { this->executeAndFinalizeTask(activeTask); });
+
+    LOGGER.debug("Executing task: " + activeTask->getId() + " (priority: " + std::to_string(activeTask->priority) +
+                 ")");
   }
 
   // Log the scheduler shutdown
@@ -349,9 +307,9 @@ void TaskScheduler::runSchedulerLoop() {
  * @param timedOut Indicates whether the task exceeded its timeout limit.
  *
  * @details
- * - If the task timed out or was cancelled, no further processing is done.
+ * - If the task timed out or was cancelled, no further processing.
  * - If successful, the task is marked as COMPLETED and statistics are updated.
- * - Completion callbacks are invoked.
+ * - And finally, completion callbacks are invoked.
  * - For repeatable tasks:
  *   - The task is rescheduled using its repeat interval.
  *   - Its status is reset to PENDING and re-added to the task queue.
@@ -359,44 +317,38 @@ void TaskScheduler::runSchedulerLoop() {
  *   - The task is removed from the active task registry.
  *
  */
-void TaskScheduler::handleTaskPostExecution(std::shared_ptr<Task> activeTask, bool timedOut) {
+void TaskScheduler::handleTaskPostExecution(std::shared_ptr<Task> executedTask, bool timedOut) {
   // Check if the task completed successfully (not timed out or cancelled)
-  if (timedOut || activeTask->getStatus() == Task::Status::CANCELLED) {
+  if (timedOut || executedTask->getStatus() == Task::Status::CANCELLED) {
     return;
   }
 
+  LOGGER.info("Task completed: " + executedTask->getId());
   // Mark the task as completed
-  activeTask->setStatus(Task::Status::COMPLETED);
-
+  executedTask->setStatus(Task::Status::COMPLETED);
   // Update completion statistics
   updateStatistics(Task::Status::COMPLETED);
-
-  // Log successful completion
-  LOGGER.info("Task completed: " + activeTask->getId());
-
   // Notify any registered completion callback
-  notifyTaskCompletion(activeTask->getId(), Task::Status::COMPLETED);
+  notifyTaskCompletion(executedTask->getId(), Task::Status::COMPLETED);
 
   // Handle repeated task rescheduling
-  if (activeTask->repeatable) {
+  if (executedTask->repeatable) {
+    LOGGER.debug("Rescheduling repeatable task: " + executedTask->getId());
     // Reschedule the task for its next execution
-    activeTask->reschedule(); // Uses the configured repeated task interval
-
+    executedTask->reschedule();
     // Reset status to pending for the next execution
-    activeTask->setStatus(Task::Status::PENDING);
-    // Log the rescheduling
-    LOGGER.debug("Rescheduling repeatable task: " + activeTask->getId());
-
+    executedTask->setStatus(Task::Status::PENDING);
     {
       // Add the rescheduled task back to the queue
-      std::lock_guard<std::mutex> lock(queueMutex);
-      taskQueue.addTask(*activeTask);
-      condition.notify_one();
+      std::lock_guard<std::mutex> queue_lock(queueMutex);
+      taskQueue.push(executedTask);
     }
+    // notify the scheduler
+    workAvailable_cv.notify_one();
   } else {
     // Non-repeatable task is done - remove from active tracking
-    std::lock_guard<std::mutex> lock(activeTasksMutex);
-    activeTasks.erase(activeTask->getId());
+    std::lock_guard<std::mutex> activeTasks_lock(activeTasksMutex);
+    activeTasks.erase(executedTask->getId());
   }
 }
 
@@ -414,50 +366,44 @@ void TaskScheduler::handleTaskPostExecution(std::shared_ptr<Task> activeTask, bo
  * @note This function ensures that all post-execution logic is handled
  *       in a thread-safe manner, including both normal and error paths.
  */
-void TaskScheduler::executeAndFinalizeTask(std::shared_ptr<Task> activeTask) {
+void TaskScheduler::executeAndFinalizeTask(std::shared_ptr<Task> task) {
   try {
-    LOGGER.info("Task started: " + activeTask->getId() + " | Thread ID: " + Task::getCurrentThreadName());
 
+    LOGGER.info("Task started: " + task->getId() + " | Thread ID: " + Task::getCurrentThreadName());
     // Execute the task with optional timeout handling
-    bool timedOut = this->executeTaskWithTimeout(*activeTask);
-    this->handleTaskPostExecution(activeTask, timedOut);
+    bool timedOut = this->executeTaskWithTimeout(*task);
+    this->handleTaskPostExecution(task, timedOut);
 
-    LOGGER.info("Task finished: " + activeTask->getId() + " | Thread ID: " + Task::getCurrentThreadName());
+    LOGGER.info("Task finished: " + task->getId() + " | Thread ID: " + Task::getCurrentThreadName());
+
   } catch (const std::exception &e) {
-    // Task execution failed with an exception
-    activeTask->setStatus(Task::Status::FAILED);
 
+    LOGGER.error("Task failed: " + task->getId() + " - " + e.what());
+    // Task execution failed with an exception
+    task->setStatus(Task::Status::FAILED);
     // Update failure statistics
     updateStatistics(Task::Status::FAILED);
-
-    // Log the failure with exception details
-    LOGGER.error("Task failed: " + activeTask->getId() + " - " + e.what());
-
     // Notify completion callback of the failure
-    notifyTaskCompletion(activeTask->getId(), Task::Status::FAILED);
-
+    notifyTaskCompletion(task->getId(), Task::Status::FAILED);
+    // Remove the failed task from active tracking
     {
-      // Remove the failed task from active tracking
-      std::lock_guard<std::mutex> activeLock(activeTasksMutex);
-      activeTasks.erase(activeTask->getId());
+      std::lock_guard<std::mutex> activeTasks_lock(activeTasksMutex);
+      activeTasks.erase(task->getId());
     }
-  } catch (...) {
-    // Task execution failed with an exception
-    activeTask->setStatus(Task::Status::FAILED);
 
+  } catch (...) {
+
+    LOGGER.error("Task failed: " + task->getId() + " - unknown exception");
+    // Task execution failed with an exception
+    task->setStatus(Task::Status::FAILED);
     // Update failure statistics
     updateStatistics(Task::Status::FAILED);
-
-    // Log the failure with exception details
-    LOGGER.error("Task failed: " + activeTask->getId() + " - unknown exception");
-
     // Notify completion callback of the failure
-    notifyTaskCompletion(activeTask->getId(), Task::Status::FAILED);
-
+    notifyTaskCompletion(task->getId(), Task::Status::FAILED);
+    // Remove the failed task from active tracking
     {
-      // Remove the failed task from active tracking
-      std::lock_guard<std::mutex> activeLock(activeTasksMutex);
-      activeTasks.erase(activeTask->getId());
+      std::lock_guard<std::mutex> activeTasks_lock(activeTasksMutex);
+      activeTasks.erase(task->getId());
     }
   }
 }
@@ -466,35 +412,29 @@ void TaskScheduler::executeAndFinalizeTask(std::shared_ptr<Task> activeTask) {
  * @brief Stops the task scheduler and all worker threads
  *
  * Signals the scheduler to stop processing new tasks and shuts down
- * all worker threads. Currently executing tasks will complete, but
- * no new tasks will be started.
+ * all worker threads. Pending tasks are dropped, but running tasks
+ * are allowed to finish. No new task will be started.
  *
  * @note Remaining queued tasks will not be executed
  */
 void TaskScheduler::stop() {
+  LOGGER.info("TaskScheduler stop() requested");
   // Set the running flag to false to signal the scheduler loop to exit
-  running = false;
-
-  // Wake up all threads waiting on the condition variable (using wait(), wait_for(), or wait_until() call)
-  // This ensures the scheduler thread checks the running flag and exits
-  condition.notify_all();
-
+  is_running.store(false, std::memory_order_release);
+  // Wake the scheduler thread so it observes running=false
+  workAvailable_cv.notify_all();
   // If the scheduler thread is running, join it to wait for its completion
   if (schedulerThread.joinable()) {
     schedulerThread.join();
   }
-  // Stop and join all worker threads
   threadPool.stop();
-
-  // Log the stop request
-  LOGGER.info("TaskScheduler stop requested");
 }
 
 /**
  * @brief Registers a callback function for task completion notifications
  *
  * Sets a callback function that will be invoked whenever a task completes
- * (success, failure, timeout, or cancellation). Only one callback
+ * (success, failure, timeout, or cancellation). Only *one* callback
  * can be registered at a time.
  *
  * @param callback Function to call on task completion, receives task ID and final status
@@ -503,7 +443,6 @@ void TaskScheduler::stop() {
  * @note Setting a new callback replaces any previously registered callback
  */
 void TaskScheduler::onTaskComplete(std::function<void(const std::string &, Task::Status)> callback) {
-  // Store the callback function for later invocation
   // Only one callback can be registered at a time
   taskCompleteCallback = callback;
 }
@@ -518,7 +457,6 @@ void TaskScheduler::onTaskComplete(std::function<void(const std::string &, Task:
  *
  */
 void TaskScheduler::setLogLevel(Logger::Level level) {
-  // Use the LOGGER macro to access the singleton and set the level
   LOGGER.setLevel(level);
 }
 
@@ -530,7 +468,6 @@ void TaskScheduler::setLogLevel(Logger::Level level) {
  * @param enable true to enable console output, false to disable
  */
 void TaskScheduler::enableConsoleLogging(bool enable) {
-  // Use the LOGGER macro to access the singleton and configure console output
   LOGGER.enableConsoleOutput(enable);
 }
 
@@ -544,11 +481,7 @@ void TaskScheduler::enableConsoleLogging(bool enable) {
  *
  */
 TaskScheduler::Statistics TaskScheduler::getStatistics() const {
-  // Acquire shared lock for thread-safe access to statistics
-  std::lock_guard<std::mutex> lock(statsMutex);
-
-  // Return a copy of the current statistics structure
-  // This provides a consistent snapshot at the time of the call
+  std::lock_guard<std::mutex> stats_lock(statsMutex);
   return stats;
 }
 
@@ -570,46 +503,32 @@ bool TaskScheduler::executeTaskWithTimeout(Task &task) {
   if (task.executionTimeout <= std::chrono::seconds(0)) {
     // No timeout limit - execute the task directly
     task.execute();
-    return false; // Not timed out
+    return false; // Not TimeOut
   }
 
-  // Execute the task asynchronously to enable timeout checking
-  // std::launch::async ensures the task runs in a separate thread
-  auto future = std::async(std::launch::async, [&task]() { task.execute(); });
+  // Execute the task
+  const auto start = std::chrono::steady_clock::now();
+  task.execute();
+  const auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start);
 
-  // Wait for the task to complete or timeout
-  if (future.wait_for(task.executionTimeout) == std::future_status::timeout) {
+  if (elapsed > task.executionTimeout) {
+    LOGGER.warn("Task timed out: " + task.getId());
     // Task exceeded its maximum execution time
     task.setStatus(Task::Status::TIMEOUT);
-
     // Update timeout statistics
     updateStatistics(Task::Status::TIMEOUT);
-
-    // Log the timeout event
-    LOGGER.warn("Task timed out: " + task.getId());
-
     // Notify completion callback of the timeout
     notifyTaskCompletion(task.getId(), Task::Status::TIMEOUT);
-
     // Remove the timed out task from active tracking
     {
-      std::lock_guard<std::mutex> activeLock(activeTasksMutex);
+      std::lock_guard<std::mutex> activeTasks_lock(activeTasksMutex);
       activeTasks.erase(task.getId());
     }
-
-    return true; // Task timed out
-  } else {
-    // Task completed within the timeout limit
-    // wait_for() == std::future_status::ready
-    try {
-      // Get the result to handle any exceptions thrown by the task
-      future.get();
-      return false; // Task completed successfully, not timed out
-    } catch (...) {
-      // Re-throw any exception for handling by the caller
-      throw;
-    }
+    return true; // Task TimeOut
   }
+
+  // no TimeOut
+  return false;
 }
 
 /**
@@ -622,10 +541,9 @@ bool TaskScheduler::executeTaskWithTimeout(Task &task) {
  *
  */
 void TaskScheduler::updateStatistics(Task::Status status) {
-  // Acquire exclusive lock for thread-safe statistics modification
-  std::lock_guard<std::mutex> lock(statsMutex);
 
-  // Increment the appropriate counter based on task completion status
+  std::lock_guard<std::mutex> stats_lock(statsMutex);
+
   switch (status) {
   case Task::Status::COMPLETED:
     stats.tasksCompleted++;
@@ -666,7 +584,7 @@ void TaskScheduler::notifyTaskCompletion(const std::string &taskId, Task::Status
   }
   // Track final task status for querying
   {
-    std::lock_guard<std::mutex> lock(activeTasksMutex);
+    std::lock_guard<std::mutex> activeTasks_lock(activeTasksMutex);
     completedTasks[taskId] = status;
   }
 }
