@@ -31,11 +31,16 @@ ThreadPool::ThreadPool(size_t numThreads, const std::string &namePrefix) : threa
 
 // Set name from inside the thread, using platform-specific call
 #ifdef __APPLE__
-      pthread_setname_np(oss.str().c_str());
+      // macOS: one-arg version; ignore failures
+      (void)pthread_setname_np(oss.str().c_str());
 #elif defined(__linux__)
-      pthread_setname_np(pthread_self(), oss.str().substr(0, 15).c_str()); // max 16 bytes incl. null
-#elif defined(_WIN32)
-      SetThreadDescription(GetCurrentThread(), std::wstring(oss.str().begin(), oss.str().end()).c_str());
+      // Linux: two-arg version; truncate to 15 so it fits the 16-byte (incl NUL) limit
+      std::string name = oss.str().substr(0, 15);
+      (void)pthread_setname_np(pthread_self(), name.c_str());
+#elif (defined(WIN32) || defined(_WIN32) || defined(__WIN32__))
+      // Windows: ignore any HRESULT failures
+      std::wstring w = std::wstring(oss.str().begin(), oss.str().end());
+      (void)SetThreadDescription(GetCurrentThread(), w.c_str());
 #endif
 
       worker(); // actual task processing loop
