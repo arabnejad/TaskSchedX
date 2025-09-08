@@ -1,25 +1,29 @@
 #include "ThreadPool.h"
 #include <iostream>
 
+#if defined(_WIN32) || defined(_WIN64) || defined(WIN32)
+/* Windows thread naming APIs */
+#include <windows.h>
+#include <processthreadsapi.h>
+#elif defined(__APPLE__) || defined(__linux__)
+/* POSIX thread naming APIs */
+#include <pthread.h>
+#endif
+
 namespace TaskSchedX {
 
 /**
- * @brief Constructs a thread pool with the specified number of worker threads
+ * @brief Create a pool with numThreads workers
  *
- * Creates and starts the specified number of worker threads immediately.
- * Each thread will wait for tasks to be enqueued and execute them as
- * they become available.
+ * Workers start immediately, wait for tasks, and execute them as they arrive.
  *
  * @param numThreads Number of worker threads to create
  * @param namePrefix Optional prefix for thread names (for debugging)
  *
  * @note All threads are started immediately and begin waiting for tasks
- * @note The number of threads cannot be changed after construction
  */
-ThreadPool::ThreadPool(size_t numThreads, const std::string &namePrefix) : threadNamePrefix(namePrefix) {
-  // Initialize the stopFlag to false - threads should start in running state
-  // This atomic flag will be used to signal threads to stop when needed
-  stopFlag = false;
+ThreadPool::ThreadPool(size_t numThreads, const std::string &namePrefix)
+    : stopFlag(false), threadNamePrefix(namePrefix) {
 
   // Create the specified number of worker threads
   for (size_t i = 0; i < numThreads; ++i) {
@@ -31,10 +35,10 @@ ThreadPool::ThreadPool(size_t numThreads, const std::string &namePrefix) : threa
 
 // Set name from inside the thread, using platform-specific call
 #ifdef __APPLE__
-      // macOS: one-arg version; ignore failures
+      // macOS: one-arg pthread_setname_np; failures are ignored
       (void)pthread_setname_np(oss.str().c_str());
 #elif defined(__linux__)
-      // Linux: two-arg version; truncate to 15 so it fits the 16-byte (incl NUL) limit
+      // Linux: two-arg pthread_setname_np; truncate to 15 so it fits the 16-byte (incl NUL) limit
       std::string name = oss.str().substr(0, 15);
       (void)pthread_setname_np(pthread_self(), name.c_str());
 #elif (defined(WIN32) || defined(_WIN32) || defined(__WIN32__))
@@ -43,54 +47,43 @@ ThreadPool::ThreadPool(size_t numThreads, const std::string &namePrefix) : threa
       (void)SetThreadDescription(GetCurrentThread(), w.c_str());
 #endif
 
-      worker(); // actual task processing loop
+      workerLoop(); // actual task processing loop
     });
   }
-
   // At this point, all worker threads are running and waiting for tasks
   // The threads will remain active until stop() is called
 }
 
 /**
- * @brief Destructor that ensures proper cleanup of all threads
+ * @brief Ensures a graceful shutdown by delegating to stop()
  *
  * Automatically calls stop() to ensure all worker threads are properly
  * joined before the ThreadPool is destroyed. This prevents resource leaks
  * and ensures graceful shutdown.
  *
  */
-ThreadPool::~ThreadPool() {
-  // Call stop() to ensure all threads are properly shut down
-  // This is safe to call even if stop() has already been called
+ThreadPool::~ThreadPool() noexcept {
   stop();
 }
 
 /**
- * @brief Enqueues a task for execution by worker threads
+ * @brief Enqueue a task and notify one waiting worker
  *
  * Adds a task to the internal queue and notifies one waiting worker thread
- * to process it. The task will be executed as soon as a worker thread
- * becomes available. Tasks are processed in FIFO (first-in, first-out) order
+ * to process it.
  *
  * @param task Function object to execute (must be callable with no parameters)
  *
- * @note Tasks are executed in FIFO order
- * @note The task is copied into the queue
+ * @note Tasks are dispatched in FIFO order (completion is not
+ * guaranteed FIFO)
  */
-void ThreadPool::enqueueTask(const std::function<void()> &task) {
+void ThreadPool::enqueueTask(std::function<void()> task) {
   {
-    // Acquire exclusive lock on the task queue for thread-safe insertion
     std::lock_guard<std::mutex> lock(queueMutex);
-
-    // Add the task to the end of the FIFO queue
-    // The task is copied into the queue
-    taskQueue.push(task);
+    taskQueue.push(std::move(task));
   }
 
-  // Notify one waiting worker thread that a new task is available
-  // If multiple threads are waiting, only one will be awakened
-  // If no threads are waiting, the notification is ignored
-  condition.notify_one();
+  workReadyCv.notify_one();
 }
 
 /**
@@ -100,29 +93,23 @@ void ThreadPool::enqueueTask(const std::function<void()> &task) {
  * then waits for all threads to complete their current tasks and terminate.
  *
  * @note Any remaining tasks in the queue will not be executed
- * @note This method is safe to call multiple times
  */
-void ThreadPool::stop() {
-  // Set the atomic stop flag to true
-  // This signals all worker threads that they should exit their loops
-  stopFlag = true;
+void ThreadPool::stop() noexcept  {
+  // Publish stop (release); workers observe it on acquire-loads
+  stopFlag.store(true, std::memory_order_release);
+  workReadyCv.notify_all();
 
-  // Wake up all worker threads that might be waiting for tasks
-  // This ensures that threads check the stop flag and can exit
-  condition.notify_all();
-
-  // Wait for each worker thread to complete and join it
   for (auto &worker : workers) {
-    // Check if the thread is joinable (hasn't been joined already)
     if (worker.joinable()) {
-      // Wait for the thread to complete its current task and exit
-      // This blocks until the thread's worker() function returns
       worker.join();
     }
   }
-
-  // At this point, all worker threads have been properly shut down
-  // and their resources have been cleaned up
+  // Discard any pending tasks after joining workers
+  {
+    std::lock_guard<std::mutex> lock(queueMutex);
+    while (!taskQueue.empty())
+      taskQueue.pop();
+  }
 }
 
 /**
@@ -135,38 +122,35 @@ void ThreadPool::stop() {
  * 4. Repeats until stop is requested
  *
  */
-void ThreadPool::worker() {
+void ThreadPool::workerLoop() {
   // Continue processing tasks until stop is requested
-  while (!stopFlag) {
+  for (;;) {
     std::function<void()> task; // Task to be executed by the worker
 
     {
       std::unique_lock<std::mutex> lock(queueMutex);
+      workReadyCv.wait(lock, [this] {
+        // Wake when a task is queued or when stopFlag is set.
+        return !taskQueue.empty() || stopFlag.load(std::memory_order_acquire);
+      });
 
-      // Wait until either a task is available or stop is requested
-      // The lambda function is the predicate - wait returns when it's true
-      // This prevents spurious wakeups from causing issues
-      condition.wait(lock, [this] { return !taskQueue.empty() || stopFlag; });
+      // Exit if shutdown was requested
+      if (stopFlag.load(std::memory_order_acquire))
+        break;
 
-      // Check if we should stop (stop flag set and possibly no tasks)
-      if (stopFlag)
-        break; // Exit the worker loop to terminate the thread
-
-      // At this point, we know there's at least one task in the queue
-      // Get the next task from the front of the FIFO queue
-      task = taskQueue.front();
-
-      // Remove the task from the queue now that we have a copy
+      task = std::move(taskQueue.front());
       taskQueue.pop();
     }
 
-    // Execute the task outside of the lock to allow other threads
-    // to access the queue while this task is running
-    // Any exceptions thrown by the task are the task's responsibility
-    task();
+    // Execute the task
+    try {
+      task();
+    } catch (const std::exception &e) {
+      std::cerr << "[ThreadPool] task exception: " << e.what() << std::endl;
+    } catch (...) {
+      std::cerr << "[ThreadPool] task threw non-std exception" << std::endl;
+    }
   }
 
-  // Worker thread exits here when stop flag is set
-  // The thread will be joined by the stop() method
 }
 } // namespace TaskSchedX

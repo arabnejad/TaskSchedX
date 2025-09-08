@@ -9,38 +9,41 @@
 #include <mutex>
 #include <condition_variable>
 #include <sstream>
+#include "Logger.h"
 namespace TaskSchedX {
 
 /**
  * @class ThreadPool
- * @brief Thread pool implementation for concurrent task execution
+ * @brief Fixed-size thread pool for concurrent task execution
  *
- * The ThreadPool class manages a fixed number of worker threads that can
- * execute tasks concurrently. It provides a thread-safe task queue and
- * automatic work distribution among available threads.
+ * The ThreadPool manages a fixed number of worker threads that wait on a
+ * condition variable and execute enqueued tasks.
  *
- * @note All worker threads are created during construction and destroyed during shutdown
- * @note Tasks are executed in FIFO order (first enqueued, first executed)
+ * @note All worker threads are created during construction and joined in stop()
+ * @note Dispatch order is FIFO; completion order is naturally non-deterministic.
  */
 class ThreadPool {
 public:
   explicit ThreadPool(size_t numThreads, const std::string &namePrefix = "Thread");
 
-  ~ThreadPool();
+  ~ThreadPool() noexcept;
 
-  void enqueueTask(const std::function<void()> &task);
+  // Non-copyable and non-assignable.
+  ThreadPool(const ThreadPool &)            = delete;
+  ThreadPool &operator=(const ThreadPool &) = delete;
 
-  void stop();
+  void enqueueTask(std::function<void()> task);
+  void stop() noexcept;
 
 private:
   /** @brief  Collection of worker threads */
   std::vector<std::thread> workers;
-  /** @brief  FIFO queue of pending tasks */
+  /** @brief  Pending tasks (dispatch order FIFO). */
   std::queue<std::function<void()>> taskQueue;
-  /** @brief Mutex protecting the task queue */
+  /** @brief Protects taskQueue; paired with workReadyCv */
   std::mutex queueMutex;
-  /** @brief  Condition variable for thread synchronization */
-  std::condition_variable condition;
+  /** @brief  Condition variable to signal work available or stop requested */
+  std::condition_variable workReadyCv;
   /** @brief  Atomic flag indicating shutdown request*/
   std::atomic<bool> stopFlag;
 
@@ -49,7 +52,7 @@ private:
   /** @brief  Used to generate unique thread names*/
   std::atomic<size_t> threadCounter{0};
 
-  void worker();
+  void workerLoop();
 };
 } // namespace TaskSchedX
 
