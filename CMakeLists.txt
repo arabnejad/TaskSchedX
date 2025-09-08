@@ -98,6 +98,8 @@ if(BUILD_TESTS)
         googletest
         URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
     )
+    set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
+    set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
 
     enable_testing()
@@ -106,7 +108,7 @@ if(BUILD_TESTS)
 
     add_executable(task_scheduler_tests ${TEST_SOURCES})
     target_include_directories(task_scheduler_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
-    target_link_libraries(task_scheduler_tests GTest::gtest GTest::gtest_main pthread task_scheduler)
+    target_link_libraries(task_scheduler_tests GTest::gtest GTest::gmock GTest::gtest_main pthread task_scheduler)
 
     add_test(NAME task_scheduler_tests COMMAND task_scheduler_tests)
 
