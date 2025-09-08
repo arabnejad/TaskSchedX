@@ -194,7 +194,7 @@ std::string Logger::getCurrentTimestamp() {
 
   if (!to_localtime_tm(time_t, tm)) {
     // Fallback: ISO-like with just epoch seconds if conversion fails
-    oss << time_t << '.' << std::setfill('0') << std::setw(3) << ms.count();
+    oss << time_t << '.' << std::setfill('0') << std::setw(3) << ms.count(); // LCOV_EXCL_LINE
   } else {
     // Format the date and time portion using standard library functions
     // This produces "YYYY-MM-DD HH:MM:SS" format
@@ -217,7 +217,7 @@ std::string Logger::getCurrentTimestamp() {
  * @param level The log level to convert
  * @return String representation of the level (e.g., "INFO", "ERROR")
  */
-std::string Logger::levelToString(Level level) {
+const char *Logger::levelToString(Level level) {
   switch (level) {
   case Level::DEBUG:
     return "DEBUG";

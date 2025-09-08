@@ -62,6 +62,8 @@ public:
 
   void error(const std::string &message);
 
+  static const char *levelToString(Level level);
+
 private:
   /**
    * @brief Constructor for singleton pattern
@@ -79,8 +81,6 @@ private:
   void log(Level level, const std::string &message);
 
   std::string getCurrentTimestamp();
-
-  std::string levelToString(Level level);
 
   /** @brief Current minimum log level */
   Level currentLevel;

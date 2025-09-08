@@ -1,5 +1,6 @@
 #include "Logger.h"
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <sstream>
 #include <iostream>
 #include <regex>
@@ -83,4 +84,15 @@ TEST_F(LoggerTest, LogMessageFormatting) {
   std::regex pattern(R"(\[INFO\].*Format test message)");
 
   EXPECT_TRUE(std::regex_search(output, pattern));
+}
+
+TEST_F(LoggerTest, LevelToString) {
+  // EXPECT_STREQ("NONE", LOGGER.levelToString(Logger::Level::NONE));
+  // EXPECT_EQ(std::string("INFO"), std::string(Logger::levelToString(Logger::Level::INFO)));
+  EXPECT_THAT(Logger::levelToString(Logger::Level::DEBUG), ::testing::StrEq("DEBUG"));
+  EXPECT_THAT(Logger::levelToString(Logger::Level::INFO), ::testing::StrEq("INFO"));
+  EXPECT_THAT(Logger::levelToString(Logger::Level::WARN), ::testing::StrEq("WARN"));
+  EXPECT_THAT(Logger::levelToString(Logger::Level::ERROR), ::testing::StrEq("ERROR"));
+  EXPECT_THAT(Logger::levelToString(Logger::Level::NONE), ::testing::StrEq("NONE"));
+  EXPECT_THAT(Logger::levelToString(static_cast<Logger::Level>(999)), ::testing::StrEq("UNKNOWN"));
 }
