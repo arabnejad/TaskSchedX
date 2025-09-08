@@ -150,11 +150,6 @@ This project supports code coverage reporting using `lcov`, `genhtml`, and `gcov
      cmake --build build --target gcovr
      # View the report at build/coverage_gcovr.html
      ```
-   - **Generate HTML report with lcov/genhtml:**
-     ```sh
-     cmake --build build --target coverage
-     # View the report at build/coverage_report/index.html
-     ```
 
 
 ---
