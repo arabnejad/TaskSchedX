@@ -21,18 +21,15 @@ protected:
 TEST_F(ThreadPoolTest, ConstructionDestruction) {
   // Test construction with different thread counts
   {
-    ThreadPool pool(1);
-    // Pool should be created successfully
+    ThreadPool pool(1); // Pool should be created successfully
   } // Destructor should clean up properly
 
   {
-    ThreadPool pool(4);
-    // Pool should be created successfully
+    ThreadPool pool(4); // Pool should be created successfully
   }
 
   {
-    ThreadPool pool(8);
-    // Pool should be created successfully
+    ThreadPool pool(8); // Pool should be created successfully
   }
 
   // If we reach here, construction and destruction worked
@@ -310,9 +307,44 @@ TEST_F(ThreadPoolTest, DestructorWaitsForTasks) {
     // Let some tasks start
     std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
-    // Pool destructor should wait for running tasks to complete
-  }
+  } // Pool destructor should wait for running tasks to complete
 
   // After destruction, running tasks should have completed
   EXPECT_EQ(completedTasks.load(), 4);
+}
+
+TEST_F(ThreadPoolTest, workerLoopCatchesStdException) {
+  testing::internal::CaptureStderr(); // start capturing std::cerr
+
+  ThreadPool pool(1);
+  pool.enqueueTask([] { throw std::runtime_error("boom"); });
+
+  // Prove pool still runs follow-up tasks
+  std::atomic<int> ran{0};
+  pool.enqueueTask([&] { ran.fetch_add(1); });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  pool.stop();
+
+  std::string err = testing::internal::GetCapturedStderr(); // stop capture
+  EXPECT_NE(err.find("[ThreadPool] task exception: boom"), std::string::npos);
+  EXPECT_EQ(ran.load(), 1);
+}
+
+TEST_F(ThreadPoolTest, workerLoopCatchesNonStdException) {
+  testing::internal::CaptureStderr(); // start capturing std::cerr
+
+  ThreadPool pool(1);
+  pool.enqueueTask([] { throw 42; });
+
+  // Prove pool still runs follow-up tasks
+  std::atomic<int> ran{0};
+  pool.enqueueTask([&] { ran.fetch_add(1); });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  pool.stop();
+
+  std::string err = testing::internal::GetCapturedStderr(); // stop capture
+  EXPECT_NE(err.find("task threw non-std exception"), std::string::npos);
+  EXPECT_EQ(ran.load(), 1);
 }
