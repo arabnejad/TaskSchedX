@@ -19,6 +19,15 @@ protected:
   }
 };
 
+TEST_F(TaskSchedulerTest, StartIsSafeOnRepeatedCalls) {
+  TaskScheduler s(1);
+  s.start();
+  s.start(); // second call should be a no-op (early return path)
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  s.stop();
+  SUCCEED();
+}
+
 // Test basic task scheduling and execution
 TEST_F(TaskSchedulerTest, BasicScheduling) {
   TaskScheduler    scheduler(1);
@@ -216,6 +225,61 @@ TEST_F(TaskSchedulerTest, TimeoutTask) {
   EXPECT_EQ(scheduler.getTaskStatus(taskId), Task::Status::COMPLETED);
 }
 
+TEST_F(TaskSchedulerTest, NoTimeoutDisablesTimeLimit) {
+  TaskScheduler s(1);
+  TaskConfig    config;
+  config.taskFn    = [] {}; // quick task
+  config.startTime = std::chrono::system_clock::now() + std::chrono::milliseconds(50);
+  config.priority  = 0;
+  config.timeout   = std::chrono::seconds(0); // <=0 --means--> no timeout branch
+  std::string id   = s.scheduleTask(config);
+
+  s.start();
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  s.stop();
+
+  EXPECT_EQ(s.getTaskStatus(id), Task::Status::COMPLETED);
+}
+
+TEST_F(TaskSchedulerTest, TaskTimesOutAndIsReported) {
+  TaskScheduler s(1);
+  TaskConfig    config;
+  config.taskFn    = [] { std::this_thread::sleep_for(std::chrono::seconds(2)); };
+  config.startTime = std::chrono::system_clock::now() + std::chrono::milliseconds(50);
+  config.priority  = 0;
+  config.timeout   = std::chrono::seconds(1);
+
+  std::string id = s.scheduleTask(config);
+  s.start();
+  std::this_thread::sleep_for(std::chrono::seconds(3));
+  s.stop();
+
+  EXPECT_EQ(s.getTaskStatus(id), Task::Status::TIMEOUT);
+  auto stats = s.getStatistics();
+  EXPECT_EQ(stats.tasksTimeout, 1);
+}
+
+TEST_F(TaskSchedulerTest, TaskThrowsNonStdException) {
+  TaskScheduler scheduler(1);
+
+  TaskConfig config;
+  config.taskFn       = [] { throw 123; }; // non-std exception → catch(...)
+  config.startTime    = std::chrono::system_clock::now() + std::chrono::milliseconds(100);
+  config.priority     = 0;
+  config.isRepeatable = false;
+
+  std::string id = scheduler.scheduleTask(config);
+
+  scheduler.start();
+  std::this_thread::sleep_for(std::chrono::milliseconds(400));
+  scheduler.stop();
+
+  EXPECT_EQ(scheduler.getTaskStatus(id), Task::Status::FAILED);
+
+  auto stats = scheduler.getStatistics();
+  EXPECT_EQ(stats.tasksFailed, 1);
+}
+
 TEST_F(TaskSchedulerTest, SchedulerStatistics) {
   TaskScheduler scheduler(3);
 
@@ -319,6 +383,22 @@ TEST_F(TaskSchedulerTest, SchedulerWithNoTasks) {
   EXPECT_EQ(stats.tasksFailed, 0);
 }
 
+TEST_F(TaskSchedulerTest, StopWhileWaitingForFutureStartTime) {
+  TaskScheduler s(1);
+  TaskConfig    c;
+  c.taskFn       = [] {}; // quick-task
+  c.startTime    = std::chrono::system_clock::now() + std::chrono::seconds(5);
+  c.priority     = 0;
+  std::string id = s.scheduleTask(c);
+
+  s.start();
+  std::this_thread::sleep_for(std::chrono::milliseconds(350));
+  s.stop();
+
+  // post-condition: never executed
+  EXPECT_EQ(s.getTaskStatus(id), Task::Status::PENDING);
+}
+
 TEST_F(TaskSchedulerTest, TaskStatusQueries) {
   TaskScheduler scheduler(1);
 
@@ -370,10 +450,26 @@ TEST_F(TaskSchedulerTest, DestructionWhileRunning) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
     tempScheduler.stop();
 
-    // Destructor should handle cleanup properly
-  }
+  } // Destructor should handle cleanup properly
 
   EXPECT_EQ(executions.load(), 1);
+}
+
+TEST_F(TaskSchedulerTest, DestructorCallsStopWhenStillRunning) {
+  std::atomic<int> ran{0};
+  {
+    TaskScheduler s(1);
+    TaskConfig    c;
+    c.taskFn    = [&] { ran.fetch_add(1); };
+    c.startTime = std::chrono::system_clock::now() + std::chrono::milliseconds(150);
+    c.priority  = 0;
+    s.scheduleTask(c);
+    s.start();
+  } // Intentionally do NOT call stop(); destructor must stop cleanly.
+
+  // no need to check ran value here,
+  // here, purpose is : destructor can safely stop a running scheduler
+  SUCCEED();
 }
 
 TEST_F(TaskSchedulerTest, StressManyTasks) {
