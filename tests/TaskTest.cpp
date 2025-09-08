@@ -3,6 +3,15 @@
 #include <atomic>
 #include <set>
 #include <vector>
+#include <sstream>
+#if defined(_WIN32) || defined(_WIN64) || defined(WIN32)
+/* Windows headers */
+#include <windows.h>
+#include <processthreadsapi.h>
+#elif defined(__APPLE__) || defined(__linux__)
+/* POSIX headers */
+#include <pthread.h>
+#endif
 #include "Task.h"
 
 using namespace TaskSchedX;
@@ -311,4 +320,37 @@ TEST_F(TaskTest, StatusThreadSafety) {
 
   // Should have performed many status changes without crashing
   EXPECT_GT(statusChanges.load(), 0);
+}
+
+TEST_F(TaskTest, StatusToStringAndStream) {
+  EXPECT_STREQ("PENDING", Task::status_to_string(Task::Status::PENDING));
+  EXPECT_STREQ("RUNNING", Task::status_to_string(Task::Status::RUNNING));
+  EXPECT_STREQ("COMPLETED", Task::status_to_string(Task::Status::COMPLETED));
+  EXPECT_STREQ("FAILED", Task::status_to_string(Task::Status::FAILED));
+  EXPECT_STREQ("CANCELLED", Task::status_to_string(Task::Status::CANCELLED));
+  EXPECT_STREQ("TIMEOUT", Task::status_to_string(Task::Status::TIMEOUT));
+  EXPECT_STREQ("UNKNOWN", Task::status_to_string(static_cast<Task::Status>(999)));
+
+  std::ostringstream os;
+  os << Task::Status::FAILED;
+  EXPECT_EQ("FAILED", os.str());
+}
+
+TEST_F(TaskTest, CurrentThreadName) {
+#if defined(__APPLE__)
+  // macOS: one-arg pthread_setname_np
+  pthread_setname_np("TaskTest");
+  auto name = Task::getCurrentThreadName();
+  EXPECT_EQ("TaskTest", name); // macOS usually preserves full name
+#elif defined(__linux__)
+  // Linux: two-arg pthread_setname_np; 16 bytes including NUL; keep it short
+  pthread_setname_np(pthread_self(), "TaskTest");
+  auto name = Task::getCurrentThreadName();
+  // On Linux, the name is truncated to 15 chars + NUL. "TaskTest" is fine.
+  EXPECT_EQ("TaskTest", name);
+#else
+  // Windows / other: fallback returns hashed thread id as string
+  auto name = Task::getCurrentThreadName();
+  EXPECT_FALSE(name.empty());
+#endif
 }

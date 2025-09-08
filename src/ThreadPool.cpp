@@ -94,7 +94,7 @@ void ThreadPool::enqueueTask(std::function<void()> task) {
  *
  * @note Any remaining tasks in the queue will not be executed
  */
-void ThreadPool::stop() noexcept  {
+void ThreadPool::stop() noexcept {
   // Publish stop (release); workers observe it on acquire-loads
   stopFlag.store(true, std::memory_order_release);
   workReadyCv.notify_all();
@@ -151,6 +151,5 @@ void ThreadPool::workerLoop() {
       std::cerr << "[ThreadPool] task threw non-std exception" << std::endl;
     }
   }
-
 }
 } // namespace TaskSchedX

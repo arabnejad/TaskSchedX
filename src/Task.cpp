@@ -282,6 +282,34 @@ std::string Task::getCurrentThreadName() {
 /**
  * @brief Converts Status enum to string for logging
  *
+ * Returns a human-readable string representation of the tasks status
+ * level for use in formatted log messages.
+ *
+ * @param status The status level to convert
+ * @return String representation of the level (e.g., "PENDING", "CANCELLED")
+ */
+const char *Task::status_to_string(Task::Status status) {
+  switch (status) {
+  case Status::PENDING:
+    return "PENDING";
+  case Status::RUNNING:
+    return "RUNNING";
+  case Status::COMPLETED:
+    return "COMPLETED";
+  case Status::FAILED:
+    return "FAILED";
+  case Status::CANCELLED:
+    return "CANCELLED";
+  case Status::TIMEOUT:
+    return "TIMEOUT";
+  default:
+    return "UNKNOWN";
+  }
+}
+
+/**
+ * @brief Converts Status enum to string for logging
+ *
  * Provides a human-readable string representation of the task status.
  * Useful for logging and debugging purposes.
  */

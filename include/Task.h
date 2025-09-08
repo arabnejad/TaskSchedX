@@ -33,33 +33,7 @@ public:
     TIMEOUT    ///< Task execution exceeded the maximum allowed time
   };
 
-  /**
-   * @brief Converts Status enum to string for logging
-   *
-   * Returns a human-readable string representation of the tasks status
-   * level for use in formatted log messages.
-   *
-   * @param status The status level to convert
-   * @return String representation of the level (e.g., "PENDING", "CANCELLED")
-   */
-  static const char *status_to_string(Status status) {
-    switch (status) {
-    case Status::PENDING:
-      return "PENDING";
-    case Status::RUNNING:
-      return "RUNNING";
-    case Status::COMPLETED:
-      return "COMPLETED";
-    case Status::FAILED:
-      return "FAILED";
-    case Status::CANCELLED:
-      return "CANCELLED";
-    case Status::TIMEOUT:
-      return "TIMEOUT";
-    default:
-      return "UNKNOWN";
-    }
-  }
+  static const char *status_to_string(Status status);
 
   Task(std::function<void()> func, std::chrono::system_clock::time_point startTime, int priority,
        bool isRepeatable = false, std::chrono::seconds repeatEvery = std::chrono::seconds(10),
@@ -116,6 +90,8 @@ private:
   /** @brief  Global counter for generating unique IDs */
   static std::atomic<size_t> nextId;
 };
+
+std::ostream &operator<<(std::ostream &os, Task::Status status);
 
 } // namespace TaskSchedX
 
