@@ -65,7 +65,6 @@ TEST_F(TaskQueueTest, PriorityOrder) {
   EXPECT_TRUE(queue.isEmpty());
 }
 
-// Test time-based ordering for same priority
 TEST_F(TaskQueueTest, TimeOrderSamePriority) {
   auto baseTime = std::chrono::system_clock::now();
 
@@ -110,7 +109,6 @@ TEST_F(TaskQueueTest, CancelById) {
               (first->getId() == task3->getId() && second->getId() == task1->getId()));
 }
 
-// Test cancellation of non-existent task
 TEST_F(TaskQueueTest, CancelNonExistentTask) {
   auto task = createTestTask(1);
   queue.push(task);
@@ -119,6 +117,35 @@ TEST_F(TaskQueueTest, CancelNonExistentTask) {
 
   EXPECT_FALSE(cancelled);
   EXPECT_EQ(queue.size(), 1); // Original task should still be there
+}
+
+TEST_F(TaskQueueTest, CancelOnEmptyQueue) {
+  ASSERT_TRUE(queue.isEmpty());
+  EXPECT_FALSE(queue.cancelTask("does-not-exist"));
+  EXPECT_TRUE(queue.isEmpty());
+}
+
+TEST_F(TaskQueueTest, CancelHeadTask) {
+  auto head   = createTestTask(0); // highest priority
+  auto second = createTestTask(1);
+
+  queue.push(head);
+  queue.push(second);
+
+  EXPECT_TRUE(queue.cancelTask(head->getId())); // cancel top element
+  EXPECT_EQ(queue.size(), 1);
+
+  auto next = queue.pop();
+  EXPECT_EQ(next->getId(), second->getId());
+  EXPECT_TRUE(queue.isEmpty());
+}
+
+TEST_F(TaskQueueTest, CancelSingleElement) {
+  auto only = createTestTask(3);
+  queue.push(only);
+
+  EXPECT_TRUE(queue.cancelTask(only->getId()));
+  EXPECT_TRUE(queue.isEmpty()); // no reinserts occurred
 }
 
 TEST_F(TaskQueueTest, ClearQueue) {

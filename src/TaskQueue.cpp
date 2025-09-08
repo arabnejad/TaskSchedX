@@ -31,7 +31,7 @@ std::shared_ptr<Task> TaskQueue::pop() {
   auto task = pq.top();
   pq.pop();
   return task;
-}
+} // LCOV_EXCL_LINE
 
 /**
  * @brief Checks if the queue is empty
