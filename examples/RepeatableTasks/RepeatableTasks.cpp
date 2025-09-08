@@ -35,10 +35,10 @@ int main() {
     int count = highPriorityCount.fetch_add(1) + 1;
     std::cout << "HIGH PRIORITY Task executed (execution #" << count << ")" << std::endl;
   };
-  taskConfig.startTime      = std::chrono::system_clock::now() + std::chrono::seconds(1); // Start in 1 second
-  taskConfig.priority       = 1;                       // High priority (lower number = higher priority)
-  taskConfig.isRepeatable     = true;                    // Repeatable task
-  taskConfig.repeatEvery = std::chrono::seconds(2); // Every 2 seconds
+  taskConfig.startTime    = std::chrono::system_clock::now() + std::chrono::seconds(1); // Start in 1 second
+  taskConfig.priority     = 1;                       // High priority (lower number = higher priority)
+  taskConfig.isRepeatable = true;                    // Repeatable task
+  taskConfig.repeatEvery  = std::chrono::seconds(2); // Every 2 seconds
 
   std::string highPriorityTaskId = scheduler.scheduleTask(taskConfig);
   std::cout << "🆗 Scheduled high priority repeatable task with ID: " << highPriorityTaskId << std::endl;
@@ -48,10 +48,10 @@ int main() {
     int count = mediumPriorityCount.fetch_add(1) + 1;
     std::cout << "MEDIUM PRIORITY Task executed (execution #" << count << ")" << std::endl;
   };
-  taskConfig.startTime      = std::chrono::system_clock::now() + std::chrono::seconds(1); // Start in 1 second
-  taskConfig.priority       = 5;                                                          // Medium priority
-  taskConfig.isRepeatable     = true;                                                       // Repeatable task
-  taskConfig.repeatEvery = std::chrono::seconds(3);                                    // Every 3 seconds
+  taskConfig.startTime    = std::chrono::system_clock::now() + std::chrono::seconds(1); // Start in 1 second
+  taskConfig.priority     = 5;                                                          // Medium priority
+  taskConfig.isRepeatable = true;                                                       // Repeatable task
+  taskConfig.repeatEvery  = std::chrono::seconds(3);                                    // Every 3 seconds
 
   std::string mediumPriorityTaskId = scheduler.scheduleTask(taskConfig);
   std::cout << "🆗 Scheduled medium priority repeatable task with ID: " << mediumPriorityTaskId << std::endl;
@@ -61,10 +61,10 @@ int main() {
     int count = lowPriorityCount.fetch_add(1) + 1;
     std::cout << "LOW PRIORITY Task executed (execution #" << count << ")" << std::endl;
   };
-  taskConfig.startTime      = std::chrono::system_clock::now() + std::chrono::seconds(1); // Start in 1 second
-  taskConfig.priority       = 10;                                                         // Low priority
-  taskConfig.isRepeatable     = true;                                                       // Repeatable task
-  taskConfig.repeatEvery = std::chrono::seconds(5);                                    // Every 5 seconds
+  taskConfig.startTime    = std::chrono::system_clock::now() + std::chrono::seconds(1); // Start in 1 second
+  taskConfig.priority     = 10;                                                         // Low priority
+  taskConfig.isRepeatable = true;                                                       // Repeatable task
+  taskConfig.repeatEvery  = std::chrono::seconds(5);                                    // Every 5 seconds
 
   std::string lowPriorityTaskId = scheduler.scheduleTask(taskConfig);
   std::cout << "🆗 Scheduled low priority repeatable task with ID: " << lowPriorityTaskId << std::endl;

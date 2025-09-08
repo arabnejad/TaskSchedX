@@ -18,7 +18,7 @@ TEST_F(TaskTest, DefaultConstruction) {
   auto                  startTime = std::chrono::system_clock::now() + std::chrono::seconds(1);
   bool                  executed  = false;
   int                   priority  = 5;
-  std::function<void()> taskFn = [&executed]() { executed = true; };
+  std::function<void()> taskFn    = [&executed]() { executed = true; };
 
   Task task(taskFn, startTime, priority);
 
@@ -26,20 +26,20 @@ TEST_F(TaskTest, DefaultConstruction) {
   EXPECT_EQ(task.startTime, startTime);
   EXPECT_EQ(task.getStatus(), Task::Status::PENDING);
   EXPECT_FALSE(task.isRepeatable);
-  EXPECT_EQ(task.repeatEvery, std::chrono::seconds(10));   // Default
-  EXPECT_EQ(task.timeout, std::chrono::seconds(60)); // Default
+  EXPECT_EQ(task.repeatEvery, std::chrono::seconds(10)); // Default
+  EXPECT_EQ(task.timeout, std::chrono::seconds(60));     // Default
   EXPECT_FALSE(executed);
   EXPECT_FALSE(task.getId().empty());
 }
 
 TEST_F(TaskTest, FullConstruction) {
-  auto                  startTime        = std::chrono::system_clock::now() + std::chrono::seconds(2);
-  bool                  executed         = false;
-  std::function<void()> taskFn        = [&executed]() { executed = true; };
-  int                   priority         = 3;
-  bool                  isRepeatable     = true;
-  std::chrono::seconds  repeatEvery   = std::chrono::seconds(5);
-  std::chrono::seconds  timeout = std::chrono::seconds(30);
+  auto                  startTime    = std::chrono::system_clock::now() + std::chrono::seconds(2);
+  bool                  executed     = false;
+  std::function<void()> taskFn       = [&executed]() { executed = true; };
+  int                   priority     = 3;
+  bool                  isRepeatable = true;
+  std::chrono::seconds  repeatEvery  = std::chrono::seconds(5);
+  std::chrono::seconds  timeout      = std::chrono::seconds(30);
 
   Task task(taskFn, startTime, priority, isRepeatable, repeatEvery, timeout);
 
@@ -55,7 +55,7 @@ TEST_F(TaskTest, FullConstruction) {
 TEST_F(TaskTest, ExecuteTask) {
   std::atomic<int>      counter(0);
   auto                  startTime = std::chrono::system_clock::now();
-  std::function<void()> taskFn = [&counter]() { counter.fetch_add(1); };
+  std::function<void()> taskFn    = [&counter]() { counter.fetch_add(1); };
   int                   priority  = 1;
 
   Task task(taskFn, startTime, priority);
@@ -69,7 +69,7 @@ TEST_F(TaskTest, ExecuteTask) {
 
 TEST_F(TaskTest, ExecuteThrows) {
   auto                  startTime = std::chrono::system_clock::now();
-  std::function<void()> taskFn = []() { throw std::runtime_error("Test exception"); };
+  std::function<void()> taskFn    = []() { throw std::runtime_error("Test exception"); };
   int                   priority  = 1;
 
   Task task(taskFn, startTime, priority);
@@ -79,7 +79,7 @@ TEST_F(TaskTest, ExecuteThrows) {
 
 TEST_F(TaskTest, StatusTransitions) {
   auto                  startTime = std::chrono::system_clock::now();
-  std::function<void()> taskFn = []() {};
+  std::function<void()> taskFn    = []() {};
   int                   priority  = 1;
 
   Task task(taskFn, startTime, priority);
@@ -103,7 +103,7 @@ TEST_F(TaskTest, StatusTransitions) {
 }
 
 TEST_F(TaskTest, RescheduleWithTime) {
-  std::function<void()> taskFn = []() {};
+  std::function<void()> taskFn    = []() {};
   int                   priority  = 1;
   auto                  startTime = std::chrono::system_clock::now();
   auto                  newTime   = startTime + std::chrono::seconds(5);
@@ -118,11 +118,11 @@ TEST_F(TaskTest, RescheduleWithTime) {
 }
 
 TEST_F(TaskTest, RescheduleRepeatable) {
-  std::function<void()> taskFn      = []() {};
-  int                   priority       = 1;
-  auto                  startTime      = std::chrono::system_clock::now();
-  bool                  isRepeatable   = true;
-  std::chrono::seconds  repeatEvery = std::chrono::seconds(3);
+  std::function<void()> taskFn       = []() {};
+  int                   priority     = 1;
+  auto                  startTime    = std::chrono::system_clock::now();
+  bool                  isRepeatable = true;
+  std::chrono::seconds  repeatEvery  = std::chrono::seconds(3);
 
   Task task(taskFn, startTime, priority, isRepeatable, repeatEvery);
 
@@ -142,12 +142,12 @@ TEST_F(TaskTest, RescheduleRepeatable) {
 
 TEST_F(TaskTest, CopyConstructor) {
   std::atomic<int>      counter(0);
-  std::function<void()> taskFn        = [&counter]() { counter.fetch_add(1); };
-  int                   priority         = 5;
-  auto                  startTime        = std::chrono::system_clock::now();
-  bool                  isRepeatable     = true;
-  std::chrono::seconds  repeatEvery   = std::chrono::seconds(7);
-  std::chrono::seconds  timeout = std::chrono::seconds(25);
+  std::function<void()> taskFn       = [&counter]() { counter.fetch_add(1); };
+  int                   priority     = 5;
+  auto                  startTime    = std::chrono::system_clock::now();
+  bool                  isRepeatable = true;
+  std::chrono::seconds  repeatEvery  = std::chrono::seconds(7);
+  std::chrono::seconds  timeout      = std::chrono::seconds(25);
 
   Task original(taskFn, startTime, priority, isRepeatable, repeatEvery, timeout);
 
@@ -171,12 +171,12 @@ TEST_F(TaskTest, CopyConstructor) {
 
 TEST_F(TaskTest, MoveConstructor) {
   std::atomic<int>      counter(0);
-  std::function<void()> taskFn        = [&counter]() { counter.fetch_add(1); };
-  auto                  startTime        = std::chrono::system_clock::now();
-  int                   priority         = 3;
-  bool                  isRepeatable     = true;
-  std::chrono::seconds  repeatEvery   = std::chrono::seconds(4);
-  std::chrono::seconds  timeout = std::chrono::seconds(20);
+  std::function<void()> taskFn       = [&counter]() { counter.fetch_add(1); };
+  auto                  startTime    = std::chrono::system_clock::now();
+  int                   priority     = 3;
+  bool                  isRepeatable = true;
+  std::chrono::seconds  repeatEvery  = std::chrono::seconds(4);
+  std::chrono::seconds  timeout      = std::chrono::seconds(20);
 
   Task original(taskFn, startTime, priority, isRepeatable, repeatEvery, timeout);
 

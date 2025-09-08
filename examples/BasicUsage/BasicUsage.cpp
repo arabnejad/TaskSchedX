@@ -27,11 +27,11 @@ int main() {
 
   // === Schedule a simple immediate task ===
   TaskConfig task1Config;
-  task1Config.taskFn  = []() { std::cout << "Hello from Task 1! This is a simple scheduled task." << std::endl; };
-  task1Config.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(1); // Execute in 1 second
-  task1Config.priority   = 1;                                                          // Priority 1
+  task1Config.taskFn       = []() { std::cout << "Hello from Task 1! This is a simple scheduled task." << std::endl; };
+  task1Config.startTime    = std::chrono::system_clock::now() + std::chrono::seconds(1); // Execute in 1 second
+  task1Config.priority     = 1;                                                          // Priority 1
   task1Config.isRepeatable = false;                                                      // non-Repeatable
-  std::string task1Id    = scheduler.scheduleTask(task1Config);
+  std::string task1Id      = scheduler.scheduleTask(task1Config);
   std::cout << "🆗 Scheduled Task 1 (immediate) with ID: " << task1Id << std::endl;
 
   // === Schedule a delayed task ===
@@ -39,10 +39,10 @@ int main() {
   task2Config.taskFn = []() {
     std::cout << "Hello from Task 2! This task was scheduled for later execution." << std::endl;
   };
-  task2Config.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(3); // Execute in 3 seconds
-  task2Config.priority   = 2;                                                          // Priority 2
+  task2Config.startTime    = std::chrono::system_clock::now() + std::chrono::seconds(3); // Execute in 3 seconds
+  task2Config.priority     = 2;                                                          // Priority 2
   task2Config.isRepeatable = false;                                                      // non-Repeatable
-  std::string task2Id    = scheduler.scheduleTask(task2Config);
+  std::string task2Id      = scheduler.scheduleTask(task2Config);
   std::cout << "🆗 Scheduled Task 2 (delayed) with ID: " << task2Id << std::endl;
 
   // === Schedule a task with some work to do ===
@@ -56,10 +56,10 @@ int main() {
     }
     std::cout << "Task 3 completed all work!" << std::endl;
   };
-  task3Config.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(2); // Execute in 2 seconds
-  task3Config.priority   = 1;                                                          // Priority 1
+  task3Config.startTime    = std::chrono::system_clock::now() + std::chrono::seconds(2); // Execute in 2 seconds
+  task3Config.priority     = 1;                                                          // Priority 1
   task3Config.isRepeatable = false;                                                      // non-Repeatable
-  std::string task3Id    = scheduler.scheduleTask(task3Config);
+  std::string task3Id      = scheduler.scheduleTask(task3Config);
   std::cout << "🆗 Scheduled Task 3 (with work) with ID: " << task3Id << std::endl;
 
   std::cout << "\n🗓️ Step 3: Starting the scheduler..." << std::endl;

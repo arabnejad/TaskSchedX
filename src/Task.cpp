@@ -40,14 +40,14 @@ std::atomic<size_t> Task::nextId{1};
  */
 Task::Task(std::function<void()> func, std::chrono::system_clock::time_point startTime, int priority, bool isRepeatable,
            std::chrono::seconds repeatEvery, std::chrono::seconds maxExecTime)
-    : taskFn(func),                  // Store the function to execute
-      startTime(startTime),          // Store the scheduled execution time
-      priority(priority),            // Store the task priority (lower = higher priority)
-      status(Status::PENDING),       // Initialize status as PENDING
-      isRepeatable(isRepeatable),    // Store whether task should repeat
-      repeatEvery(repeatEvery),      // Store time between repeated task executions
-      timeout(maxExecTime), // Store maximum allowed execution time
-      taskId(generateTaskId())       // Generate and store unique task ID
+    : taskFn(func),               // Store the function to execute
+      startTime(startTime),       // Store the scheduled execution time
+      priority(priority),         // Store the task priority (lower = higher priority)
+      status(Status::PENDING),    // Initialize status as PENDING
+      isRepeatable(isRepeatable), // Store whether task should repeat
+      repeatEvery(repeatEvery),   // Store time between repeated task executions
+      timeout(maxExecTime),       // Store maximum allowed execution time
+      taskId(generateTaskId())    // Generate and store unique task ID
 {}
 
 /**
@@ -69,8 +69,8 @@ Task::Task(const Task &other)
       status(other.status.load()),      // Load atomic status value (cannot move atomics) and store in new atomic
       isRepeatable(other.isRepeatable), // Copy the repeatable flag
       repeatEvery(other.repeatEvery),   // Copy the repeated task executions interval
-      timeout(other.timeout), // Copy the timeout value
-      taskId(other.taskId)                      // Copy the task ID
+      timeout(other.timeout),           // Copy the timeout value
+      taskId(other.taskId)              // Copy the task ID
 {}
 
 /**
@@ -89,8 +89,8 @@ Task::Task(Task &&other) noexcept
       status(other.status.load()),      // Load atomic status value (cannot move atomics) and store in new atomic
       isRepeatable(other.isRepeatable), // Copy the repeatable flag
       repeatEvery(other.repeatEvery),   // Copy the interval
-      timeout(other.timeout), // Copy the timeout
-      taskId(std::move(other.taskId))           // Move the task ID string
+      timeout(other.timeout),           // Copy the timeout
+      taskId(std::move(other.taskId))   // Move the task ID string
 {}
 
 /**
@@ -103,15 +103,15 @@ Task::Task(Task &&other) noexcept
  * @return Reference to this task
  */
 Task &Task::operator=(const Task &other) {
-  if (this != &other) {                        // Protect against self-assignment
-    taskFn = other.taskFn;               // Assign the function object
-    startTime = other.startTime;               // Assign the execution time
-    priority  = other.priority;                // Assign the priority
-    status.store(other.status.load());         // Store the loaded atomic value
-    isRepeatable     = other.isRepeatable;     // Assign the repeatable flag
-    repeatEvery   = other.repeatEvery;   // Assign the interval
-    timeout = other.timeout; // Assign the timeout
-    taskId           = other.taskId;           // Assign the task ID
+  if (this != &other) {                // Protect against self-assignment
+    taskFn    = other.taskFn;          // Assign the function object
+    startTime = other.startTime;       // Assign the execution time
+    priority  = other.priority;        // Assign the priority
+    status.store(other.status.load()); // Store the loaded atomic value
+    isRepeatable = other.isRepeatable; // Assign the repeatable flag
+    repeatEvery  = other.repeatEvery;  // Assign the interval
+    timeout      = other.timeout;      // Assign the timeout
+    taskId       = other.taskId;       // Assign the task ID
   }
   return *this; // Return reference to this object
 }
@@ -126,15 +126,15 @@ Task &Task::operator=(const Task &other) {
  * @return Reference to this task
  */
 Task &Task::operator=(Task &&other) noexcept {
-  if (this != &other) {                         // Protect against self-assignment
-    taskFn = std::move(other.taskFn);     // Move the function object
-    startTime = other.startTime;                // Copy the execution time
-    priority  = other.priority;                 // Copy the priority
-    status.store(other.status.load());          // Store the loaded atomic value
-    isRepeatable     = other.isRepeatable;      // Copy the repeatable flag
-    repeatEvery   = other.repeatEvery;    // Copy the interval
-    timeout = other.timeout;  // Copy the timeout
-    taskId           = std::move(other.taskId); // Move the task ID string
+  if (this != &other) {                     // Protect against self-assignment
+    taskFn    = std::move(other.taskFn);    // Move the function object
+    startTime = other.startTime;            // Copy the execution time
+    priority  = other.priority;             // Copy the priority
+    status.store(other.status.load());      // Store the loaded atomic value
+    isRepeatable = other.isRepeatable;      // Copy the repeatable flag
+    repeatEvery  = other.repeatEvery;       // Copy the interval
+    timeout      = other.timeout;           // Copy the timeout
+    taskId       = std::move(other.taskId); // Move the task ID string
   }
   return *this; // Return reference to this object
 }

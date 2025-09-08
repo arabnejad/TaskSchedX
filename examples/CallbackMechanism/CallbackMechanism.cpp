@@ -30,11 +30,11 @@ int main() {
 
   // === Define a task ===
   TaskConfig taskConfig;
-  taskConfig.taskFn  = []() { std::cout << "Task 1 executed" << std::endl; };
-  taskConfig.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(1); // Execute in 1 second
-  taskConfig.priority   = 1;                                                          // Priority 1
+  taskConfig.taskFn       = []() { std::cout << "Task 1 executed" << std::endl; };
+  taskConfig.startTime    = std::chrono::system_clock::now() + std::chrono::seconds(1); // Execute in 1 second
+  taskConfig.priority     = 1;                                                          // Priority 1
   taskConfig.isRepeatable = false;                                                      // non-Repeatable
-  std::string taskId    = scheduler.scheduleTask(taskConfig);
+  std::string taskId      = scheduler.scheduleTask(taskConfig);
   std::cout << "\n🆗 Scheduled task with ID: " << taskId << std::endl;
 
   std::cout << "\n🗓️ Starting scheduler and waiting for task completion..." << std::endl;

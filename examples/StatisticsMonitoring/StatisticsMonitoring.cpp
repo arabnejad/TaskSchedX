@@ -30,7 +30,7 @@ int main() {
 
   // === Successful Tasks ===
   TaskConfig success;
-  success.taskFn = []() { std::cout << "✅ Success task executed" << std::endl; };
+  success.taskFn    = []() { std::cout << "✅ Success task executed" << std::endl; };
   success.startTime = std::chrono::system_clock::now() + std::chrono::milliseconds(200);
 
   std::string taskIdSuccess = scheduler.scheduleTask(success);
@@ -53,8 +53,8 @@ int main() {
     std::cout << "⏳ Timeout task running" << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(3));
   };
-  timeout.startTime        = std::chrono::system_clock::now() + std::chrono::milliseconds(600);
-  timeout.timeout = std::chrono::seconds(1);
+  timeout.startTime = std::chrono::system_clock::now() + std::chrono::milliseconds(600);
+  timeout.timeout   = std::chrono::seconds(1);
 
   std::string taskIdTimeout = scheduler.scheduleTask(timeout);
   std::cout << "🆗 Scheduled timeout task with ID: " << taskIdTimeout << " (1s timeout)" << std::endl;
@@ -65,16 +65,16 @@ int main() {
     int count = repeatCount.fetch_add(1) + 1;
     std::cout << "🔁 Repeatable task run #" << count << std::endl;
   };
-  repeatable.isRepeatable     = true;
-  repeatable.repeatEvery = std::chrono::seconds(1);
-  repeatable.startTime      = std::chrono::system_clock::now() + std::chrono::milliseconds(800);
+  repeatable.isRepeatable = true;
+  repeatable.repeatEvery  = std::chrono::seconds(1);
+  repeatable.startTime    = std::chrono::system_clock::now() + std::chrono::milliseconds(800);
 
   std::string taskIdRepeatable = scheduler.scheduleTask(repeatable);
   std::cout << "🆗 Scheduled repeatable task with ID: " << taskIdRepeatable << std::endl;
 
   // === Tasks to Cancel ===
   TaskConfig cancellable;
-  cancellable.taskFn = []() { std::cout << "🚫 This should not run!" << std::endl; };
+  cancellable.taskFn    = []() { std::cout << "🚫 This should not run!" << std::endl; };
   cancellable.startTime = std::chrono::system_clock::now() + std::chrono::seconds(5);
 
   std::string taskIdCancellable = scheduler.scheduleTask(cancellable);

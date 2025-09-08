@@ -27,8 +27,8 @@ int main() {
     std::cout << "About to simulate an error..." << std::endl;
     throw std::runtime_error("Simulated error in task - this is intentional for demonstration");
   };
-  taskConfig.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(2); // schedule to run in 2 seconds
-  taskConfig.priority   = 1;                                                          // Priority 1
+  taskConfig.startTime    = std::chrono::system_clock::now() + std::chrono::seconds(2); // schedule to run in 2 seconds
+  taskConfig.priority     = 1;                                                          // Priority 1
   taskConfig.isRepeatable = false;                                                      // non-Repeatable
 
   std::string taskId = scheduler.scheduleTask(taskConfig);

@@ -24,9 +24,9 @@ int main() {
   std::cout << "\n🚀 Scheduling immediate priority tasks..." << std::endl;
   for (int i = 1; i <= 3; ++i) {
     TaskConfig config;
-    config.taskFn  = [i]() { std::cout << "[Immediate] Task " << i << " executed." << std::endl; };
-    config.priority   = i;                                // Priority 1, 2, 3
-    config.startTime  = std::chrono::system_clock::now(); // Execute immediately
+    config.taskFn       = [i]() { std::cout << "[Immediate] Task " << i << " executed." << std::endl; };
+    config.priority     = i;                                // Priority 1, 2, 3
+    config.startTime    = std::chrono::system_clock::now(); // Execute immediately
     config.isRepeatable = false;                            // non-Repeatable
 
     std::string taskId = scheduler.scheduleTask(config);
@@ -38,9 +38,9 @@ int main() {
   std::cout << "\n📅 Scheduling staggered tasks (delayed)..." << std::endl;
   for (int i = 1; i <= 3; ++i) {
     TaskConfig config;
-    config.taskFn  = [i]() { std::cout << "[Staggered] Task " << i << " executed." << std::endl; };
-    config.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(i * 2); // 2s, 4s, 6s, 8s
-    config.priority   = 5;     // Priority 5, Same priority for all
+    config.taskFn       = [i]() { std::cout << "[Staggered] Task " << i << " executed." << std::endl; };
+    config.startTime    = std::chrono::system_clock::now() + std::chrono::seconds(i * 2); // 2s, 4s, 6s, 8s
+    config.priority     = 5;     // Priority 5, Same priority for all
     config.isRepeatable = false; // non-Repeatable
 
     std::string taskId = scheduler.scheduleTask(config);
@@ -54,9 +54,9 @@ int main() {
   auto batchTime = std::chrono::system_clock::now() + std::chrono::seconds(8);
   for (int i = 1; i <= 3; ++i) {
     TaskConfig config;
-    config.taskFn  = [i]() { std::cout << "[Batch] Task " << i << " running..." << std::endl; };
-    config.startTime  = batchTime; // All execute at the same time
-    config.priority   = 10 - i;    // Reverse priority (5=highest, 1=lowest)
+    config.taskFn       = [i]() { std::cout << "[Batch] Task " << i << " running..." << std::endl; };
+    config.startTime    = batchTime; // All execute at the same time
+    config.priority     = 10 - i;    // Reverse priority (5=highest, 1=lowest)
     config.isRepeatable = false;     // non-Repeatable
 
     std::string taskId = scheduler.scheduleTask(config);
@@ -69,22 +69,22 @@ int main() {
 
   // Quick maintenance (every 3 seconds)
   TaskConfig quick;
-  quick.taskFn      = []() { std::cout << "[Maintenance] Quick check." << std::endl; };
-  quick.startTime      = std::chrono::system_clock::now() + std::chrono::seconds(3); // Execute in 3 seconds
-  quick.priority       = 20;                                                         // Lower priority than other tasks
-  quick.isRepeatable     = true;                                                       // Repeatable task
-  quick.repeatEvery = std::chrono::seconds(4);                                    // Repeat every 4 seconds
+  quick.taskFn       = []() { std::cout << "[Maintenance] Quick check." << std::endl; };
+  quick.startTime    = std::chrono::system_clock::now() + std::chrono::seconds(3); // Execute in 3 seconds
+  quick.priority     = 20;                                                         // Lower priority than other tasks
+  quick.isRepeatable = true;                                                       // Repeatable task
+  quick.repeatEvery  = std::chrono::seconds(4);                                    // Repeat every 4 seconds
 
   std::string quickMaintenanceId = scheduler.scheduleTask(quick);
   std::cout << "🆗 Scheduled quick maintenance (every 3s) with ID: " << quickMaintenanceId << std::endl;
 
   // Slow maintenance (every 6 seconds)
   TaskConfig slow;
-  slow.taskFn      = []() { std::cout << "[Maintenance] Slow cleanup." << std::endl; };
-  slow.startTime      = std::chrono::system_clock::now() + std::chrono::seconds(5); // Execute in 5 seconds
-  slow.priority       = 25;                                                         // lowest priority than other tasks
-  slow.isRepeatable     = true;                                                       // Repeatable task
-  slow.repeatEvery = std::chrono::seconds(6);                                    // Repeat every 6 seconds
+  slow.taskFn       = []() { std::cout << "[Maintenance] Slow cleanup." << std::endl; };
+  slow.startTime    = std::chrono::system_clock::now() + std::chrono::seconds(5); // Execute in 5 seconds
+  slow.priority     = 25;                                                         // lowest priority than other tasks
+  slow.isRepeatable = true;                                                       // Repeatable task
+  slow.repeatEvery  = std::chrono::seconds(6);                                    // Repeat every 6 seconds
 
   std::string slowMaintenanceId = scheduler.scheduleTask(slow);
   std::cout << "🆗 Scheduled slow maintenance (every 6s) with ID: " << slowMaintenanceId << std::endl;

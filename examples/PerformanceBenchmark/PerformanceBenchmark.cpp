@@ -42,8 +42,8 @@ public:
         taskBody();
         completed++;
       };
-      taskConfig.startTime  = std::chrono::system_clock::now(); // Immediate execution
-      taskConfig.priority   = 1;                                // Same priority for all
+      taskConfig.startTime    = std::chrono::system_clock::now(); // Immediate execution
+      taskConfig.priority     = 1;                                // Same priority for all
       taskConfig.isRepeatable = false;                            // non-Repeatable
 
       scheduler.scheduleTask(taskConfig);

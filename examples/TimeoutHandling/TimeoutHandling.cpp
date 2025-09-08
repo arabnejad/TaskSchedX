@@ -24,7 +24,7 @@ int main() {
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     std::cout << "✅ Quick task completed" << std::endl;
   };
-  quick.timeout  = std::chrono::seconds(3);
+  quick.timeout           = std::chrono::seconds(3);
   std::string taskIdQuick = scheduler.scheduleTask(quick);
   std::cout << "🆗 Scheduled quick task with ID: " << taskIdQuick << std::endl;
 
@@ -35,7 +35,7 @@ int main() {
     std::this_thread::sleep_for(std::chrono::seconds(4));
     std::cout << "⛔ Slow task finished (but marked as TIMEOUT)" << std::endl;
   };
-  slow.timeout  = std::chrono::seconds(2);
+  slow.timeout           = std::chrono::seconds(2);
   std::string taskIdSlow = scheduler.scheduleTask(slow);
   std::cout << "🆗 Scheduled slow task with ID: " << taskIdSlow << std::endl;
 
@@ -46,7 +46,7 @@ int main() {
     std::this_thread::sleep_for(std::chrono::seconds(1));
     std::cout << "✅ Unlimited task completed" << std::endl;
   };
-  unlimited.timeout  = std::chrono::seconds(0); // No timeout
+  unlimited.timeout           = std::chrono::seconds(0); // No timeout
   std::string taskIdUnlimited = scheduler.scheduleTask(unlimited);
   std::cout << "🆗 Scheduled unlimited task with ID: " << taskIdUnlimited << std::endl;
 

@@ -34,8 +34,8 @@ int main() {
 
     std::cout << "=== Long-running task completed successfully ===" << std::endl;
   };
-  taskConfig.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(1);
-  taskConfig.priority   = 1;     // Priority 1
+  taskConfig.startTime    = std::chrono::system_clock::now() + std::chrono::seconds(1);
+  taskConfig.priority     = 1;     // Priority 1
   taskConfig.isRepeatable = false; // non-Repeatable
 
   std::string taskId = scheduler.scheduleTask(taskConfig);

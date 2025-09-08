@@ -20,12 +20,12 @@ namespace TaskSchedX {
  * the chance of parameter ordering errors.
  */
 struct TaskConfig {
-  std::function<void()>                 taskFn;                  ///< The function to execute
-  std::chrono::system_clock::time_point startTime;                  ///< Scheduled start execution time
-  int                                   priority;                   ///< Task priority (lower = higher priority)
-  bool                                  isRepeatable = false;       ///< Whether task should repeat
-  std::chrono::seconds repeatEvery   = std::chrono::seconds(10); ///< Interval between repeated task executions
-  std::chrono::seconds timeout = std::chrono::seconds(60); ///< Maximum execution time before timeout
+  std::function<void()>                 taskFn;                ///< The function to execute
+  std::chrono::system_clock::time_point startTime;             ///< Scheduled start execution time
+  int                                   priority;              ///< Task priority (lower = higher priority)
+  bool                                  isRepeatable = false;  ///< Whether task should repeat
+  std::chrono::seconds repeatEvery = std::chrono::seconds(10); ///< Interval between repeated task executions
+  std::chrono::seconds timeout     = std::chrono::seconds(60); ///< Maximum execution time before timeout
 
   TaskConfig() : taskFn(nullptr), startTime(std::chrono::system_clock::now()) {}
 
@@ -102,7 +102,7 @@ public:
     size_t tasksCompleted      = 0; ///< Number of tasks completed successfully
     size_t tasksFailed         = 0; ///< Number of tasks that failed with exceptions
     size_t tasksCancelled      = 0; ///< Number of tasks cancelled before or during execution
-    size_t tasksTimeout       = 0; ///< Number of tasks that exceeded their timeout limit
+    size_t tasksTimeout        = 0; ///< Number of tasks that exceeded their timeout limit
   };
 
   Statistics getStatistics() const;

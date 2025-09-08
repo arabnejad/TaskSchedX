@@ -24,7 +24,7 @@ int main() {
 
   // === Cancel before execution ===
   TaskConfig preCancel;
-  preCancel.taskFn         = []() { std::cout << "🚨 Should not run 🚨\n"; };
+  preCancel.taskFn            = []() { std::cout << "🚨 Should not run 🚨\n"; };
   preCancel.startTime         = std::chrono::system_clock::now() + std::chrono::seconds(3);
   std::string taskIdPreCancel = scheduler.scheduleTask(preCancel);
   std::cout << "🆗 Scheduled task (pre-cancel) with ID: " << taskIdPreCancel << std::endl;
@@ -54,8 +54,8 @@ int main() {
     std::cout << "🔁 Repeat #" << c << std::endl;
   };
   repeatTask.startTime         = std::chrono::system_clock::now() + std::chrono::seconds(1);
-  repeatTask.isRepeatable        = true;
-  repeatTask.repeatEvery    = std::chrono::seconds(1);
+  repeatTask.isRepeatable      = true;
+  repeatTask.repeatEvery       = std::chrono::seconds(1);
   std::string taskIdRepeatTask = scheduler.scheduleTask(repeatTask);
   std::cout << "🆗 Scheduled repeatable task with ID: " << taskIdRepeatTask << std::endl;
 

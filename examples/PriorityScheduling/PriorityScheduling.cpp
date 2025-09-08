@@ -35,8 +35,8 @@ int main() {
     std::cout << "Task (PRIORITY 15) — Expected: #7 - Lowest" << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Small delay to see ordering
   };
-  taskConfig.startTime  = startTime;
-  taskConfig.priority   = 15;    // Priority 15, lowest priority
+  taskConfig.startTime    = startTime;
+  taskConfig.priority     = 15;    // Priority 15, lowest priority
   taskConfig.isRepeatable = false; // non-Repeatable
 
   std::string lowPriorityId = scheduler.scheduleTask(taskConfig);
@@ -48,8 +48,8 @@ int main() {
     std::cout << "Task (PRIORITY 1) — Expected: #2 - Highest priority" << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Small delay to see ordering
   };
-  taskConfig.startTime  = startTime;
-  taskConfig.priority   = 1;     // Priority 1, highest priority
+  taskConfig.startTime    = startTime;
+  taskConfig.priority     = 1;     // Priority 1, highest priority
   taskConfig.isRepeatable = false; // non-Repeatable
 
   std::string highPriorityId = scheduler.scheduleTask(taskConfig);
@@ -61,8 +61,8 @@ int main() {
     std::cout << "Task (PRIORITY 10) — Expected: #6 - Medium-low" << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Small delay to see ordering
   };
-  taskConfig.startTime  = startTime;
-  taskConfig.priority   = 10;    // Priority 10, second lowest priority
+  taskConfig.startTime    = startTime;
+  taskConfig.priority     = 10;    // Priority 10, second lowest priority
   taskConfig.isRepeatable = false; // non-Repeatable
 
   std::string mediumLowPriorityId = scheduler.scheduleTask(taskConfig);
@@ -74,8 +74,8 @@ int main() {
     std::cout << "Task (PRIORITY 5) — Expected: #5 - Medium priority" << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Small delay to see ordering
   };
-  taskConfig.startTime  = startTime;
-  taskConfig.priority   = 5;     // Priority 5, second highest priority
+  taskConfig.startTime    = startTime;
+  taskConfig.priority     = 5;     // Priority 5, second highest priority
   taskConfig.isRepeatable = false; // non-Repeatable
 
   std::string mediumPriorityId = scheduler.scheduleTask(taskConfig);
@@ -87,9 +87,9 @@ int main() {
 
   // === Task with priority 3 (earlier label) ===
   // This task has the same priority but is scheduled earlier than the next one
-  taskConfig.taskFn  = []() { std::cout << "Task (PRIORITY 3-A) — Expected: #3" << std::endl; };
-  taskConfig.startTime  = startTime;
-  taskConfig.priority   = 3;     // Priority 3,
+  taskConfig.taskFn       = []() { std::cout << "Task (PRIORITY 3-A) — Expected: #3" << std::endl; };
+  taskConfig.startTime    = startTime;
+  taskConfig.priority     = 3;     // Priority 3,
   taskConfig.isRepeatable = false; // non-Repeatable
 
   std::string earlierPriority3Id = scheduler.scheduleTask(taskConfig);
@@ -98,9 +98,9 @@ int main() {
 
   // === Task with priority 3 (later label) ===
   // This task has the same priority but is scheduled later than the previous one
-  taskConfig.taskFn  = []() { std::cout << "Task (PRIORITY 3-B) — Expected: #4" << std::endl; };
-  taskConfig.startTime  = startTime;
-  taskConfig.priority   = 3;     // Priority 3,
+  taskConfig.taskFn       = []() { std::cout << "Task (PRIORITY 3-B) — Expected: #4" << std::endl; };
+  taskConfig.startTime    = startTime;
+  taskConfig.priority     = 3;     // Priority 3,
   taskConfig.isRepeatable = false; // non-Repeatable
 
   std::string laterPriority3Id = scheduler.scheduleTask(taskConfig);
@@ -111,10 +111,10 @@ int main() {
   // These tasks should execute immediately and have the highest priority
   std::cout << "\n🗓️ Adding immediate high priority tasks:" << std::endl;
 
-  taskConfig.taskFn = []() { std::cout << "Task (PRIORITY 0) — Expected: #1 - Immediate execution" << std::endl; };
+  taskConfig.taskFn    = []() { std::cout << "Task (PRIORITY 0) — Expected: #1 - Immediate execution" << std::endl; };
   taskConfig.startTime = std::chrono::system_clock::now(); // Immediate execution
   taskConfig.priority  = 0;                                // Priority 0, highest priority
-  taskConfig.isRepeatable = false;                           // non-Repeatable
+  taskConfig.isRepeatable = false;                         // non-Repeatable
 
   std::string immediateId = scheduler.scheduleTask(taskConfig);
   taskIds.push_back(immediateId);

@@ -46,8 +46,8 @@ TEST_F(IntegrationTest, CompleteWorkflow) {
       // std::cout << "Immediate task " << i << std::endl;
       std::this_thread::sleep_for(std::chrono::milliseconds(50));
     };
-    immediateConfig.startTime  = std::chrono::system_clock::now() + std::chrono::milliseconds(100 * i);
-    immediateConfig.priority   = i + 1;
+    immediateConfig.startTime    = std::chrono::system_clock::now() + std::chrono::milliseconds(100 * i);
+    immediateConfig.priority     = i + 1;
     immediateConfig.isRepeatable = false;
     taskIds.push_back(scheduler.scheduleTask(immediateConfig));
   }
@@ -59,8 +59,8 @@ TEST_F(IntegrationTest, CompleteWorkflow) {
       // std::cout << "Delayed task " << i << std::endl;
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     };
-    delayedConfig.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(2);
-    delayedConfig.priority   = 3 - i;
+    delayedConfig.startTime    = std::chrono::system_clock::now() + std::chrono::seconds(2);
+    delayedConfig.priority     = 3 - i;
     delayedConfig.isRepeatable = false;
     taskIds.push_back(scheduler.scheduleTask(delayedConfig));
   }
@@ -71,11 +71,11 @@ TEST_F(IntegrationTest, CompleteWorkflow) {
     // std::cout << "Repeatable task executing" << std::endl;
     std::this_thread::sleep_for(std::chrono::microseconds(100)); // do some work
   };
-  repeatableConfig.startTime      = std::chrono::system_clock::now() + std::chrono::seconds(1);
-  repeatableConfig.priority       = 5;
-  repeatableConfig.isRepeatable     = true;
-  repeatableConfig.repeatEvery = std::chrono::seconds(1);
-  std::string repeatId            = scheduler.scheduleTask(repeatableConfig);
+  repeatableConfig.startTime    = std::chrono::system_clock::now() + std::chrono::seconds(1);
+  repeatableConfig.priority     = 5;
+  repeatableConfig.isRepeatable = true;
+  repeatableConfig.repeatEvery  = std::chrono::seconds(1);
+  std::string repeatId          = scheduler.scheduleTask(repeatableConfig);
   taskIds.push_back(repeatId);
 
   // 4. Failing task
@@ -84,10 +84,10 @@ TEST_F(IntegrationTest, CompleteWorkflow) {
     // std::cout << "This task will fail" << std::endl;
     throw std::runtime_error("Intentional failure");
   };
-  failConfig.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(1);
-  failConfig.priority   = 2;
+  failConfig.startTime    = std::chrono::system_clock::now() + std::chrono::seconds(1);
+  failConfig.priority     = 2;
   failConfig.isRepeatable = false;
-  std::string failId    = scheduler.scheduleTask(failConfig);
+  std::string failId      = scheduler.scheduleTask(failConfig);
   taskIds.push_back(failId);
 
   // 5. Cancellable task
@@ -96,10 +96,10 @@ TEST_F(IntegrationTest, CompleteWorkflow) {
     // std::cout << "This task should be cancelled" << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(5)); // Long sleep
   };
-  cancelConfig.startTime  = std::chrono::system_clock::now() + std::chrono::seconds(3);
-  cancelConfig.priority   = 1;
+  cancelConfig.startTime    = std::chrono::system_clock::now() + std::chrono::seconds(3);
+  cancelConfig.priority     = 1;
   cancelConfig.isRepeatable = false;
-  std::string cancelId    = scheduler.scheduleTask(cancelConfig);
+  std::string cancelId      = scheduler.scheduleTask(cancelConfig);
   taskIds.push_back(cancelId);
 
   scheduler.start();
@@ -139,7 +139,7 @@ TEST_F(IntegrationTest, HighLoadScenario) {
 
   // Schedule 100 lightweight tasks with short sleep
   TaskConfig config;
-  config.taskFn = []() { std::this_thread::sleep_for(std::chrono::milliseconds(10)); };
+  config.taskFn    = []() { std::this_thread::sleep_for(std::chrono::milliseconds(10)); };
   config.startTime = std::chrono::system_clock::now();
 
   for (int i = 0; i < NUM_TASKS; ++i) {
@@ -172,9 +172,9 @@ TEST_F(IntegrationTest, MixedTaskTypes) {
 
   // Schedule 3 one-time tasks
   TaskConfig oneTimeConfig;
-  oneTimeConfig.taskFn  = [&]() { ++oneTimeDone; };
-  oneTimeConfig.startTime  = std::chrono::system_clock::now();
-  oneTimeConfig.priority   = 1;
+  oneTimeConfig.taskFn       = [&]() { ++oneTimeDone; };
+  oneTimeConfig.startTime    = std::chrono::system_clock::now();
+  oneTimeConfig.priority     = 1;
   oneTimeConfig.isRepeatable = false;
   for (int i = 0; i < 3; ++i) {
     scheduler.scheduleTask(oneTimeConfig);
@@ -182,11 +182,11 @@ TEST_F(IntegrationTest, MixedTaskTypes) {
 
   // Schedule 2 repeatable tasks
   TaskConfig repeatableConfig;
-  repeatableConfig.taskFn      = [&]() { ++repeatCount; };
-  repeatableConfig.startTime      = std::chrono::system_clock::now();
-  repeatableConfig.priority       = 2;
-  repeatableConfig.isRepeatable     = true;
-  repeatableConfig.repeatEvery = std::chrono::seconds(1);
+  repeatableConfig.taskFn       = [&]() { ++repeatCount; };
+  repeatableConfig.startTime    = std::chrono::system_clock::now();
+  repeatableConfig.priority     = 2;
+  repeatableConfig.isRepeatable = true;
+  repeatableConfig.repeatEvery  = std::chrono::seconds(1);
 
   std::vector<std::string> repeatablesTaskIds;
   for (int i = 0; i < 2; ++i) {
